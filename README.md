@@ -139,3 +139,11 @@ src/
 - 凭证、二维码这些运行时文件都在 `runtime/` 和 DSH 自己的目录里，**不要提交到仓库**。
 - Element Plus 整站暗色：`main.ts` 里挂了 `html.dark` + `theme-chalk/dark/css-vars.css`，
   主色在 `style.css` 里按 B站粉重排了 `--el-color-primary` 系列变量。
+
+## 许可与来源
+
+MIT（见 [LICENSE](LICENSE)）。
+
+这个仓库**不是** bili-cli 的源码副本：后端封装和前端组件都是独立写的，运行时只是**调用** ili 命令。
+有两处借鉴已在 [NOTICE.md](NOTICE.md) 里写明 —— 命令清单参考了 bili-cli 的 ili schema，
+duty/duty.md 的章程结构改写自 [dsh-bili-scroll](https://github.com/c1overzz/dsh-bili-scroll)（两者都是 MIT）。
