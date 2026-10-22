@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>bili-cli-view · UI 设计稿（三方向）</title>
+<style>
+  /* ══ 基础：零留白 + 藏滚动条 + 一帧一视口 ══ */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scrollbar-width: none; }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  body { margin: 0; padding: 0; display: block; background: #000; }
+  .frame { width: 1440px; height: 900px; position: relative; overflow: hidden; }
+  .ic { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7;
+        stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ══ 封面占位（真实封面走 /api/cover，这里用渐变模拟照片）══ */
+  .cov { position: relative; overflow: hidden; background: #14181f; }
+  .cov::before { content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(138deg, rgba(255,255,255,.05) 0 1px, transparent 1px 6px); }
+  .cov::after { content: ''; position: absolute; inset: 0;
+    background:
+      linear-gradient(118deg, transparent 38%, rgba(255,255,255,.09) 52%, transparent 62%),
+      radial-gradient(120% 90% at 26% 16%, rgba(255,255,255,.2), transparent 58%); }
+  .g1 { background: linear-gradient(135deg, #33222c, #6b3a46 46%, #1a2029); }
+  .g2 { background: linear-gradient(135deg, #1d2a1c, #3f5c2e 48%, #131c15); }
+  .g3 { background: linear-gradient(135deg, #102436, #1d4f6e 52%, #0c1a25); }
+  .g4 { background: linear-gradient(135deg, #2f2415, #6d4a1c 50%, #1b1610); }
+  .g5 { background: linear-gradient(135deg, #251b30, #4b2f6e 54%, #151020); }
+  .g6 { background: linear-gradient(135deg, #112a2b, #1f5d57 50%, #0c1c1d); }
+  .name { position: absolute; inset: 0; display: grid; place-items: center; z-index: 2;
+    color: rgba(255,255,255,.42); font-size: 11px; letter-spacing: .18em; text-align: center; }
+  .dur { position: absolute; right: 6px; bottom: 6px; z-index: 3; padding: 0 5px; border-radius: 4px;
+    background: rgba(0,0,0,.7); color: #f0f4fa; font-size: 10.5px; line-height: 16px;
+    font-variant-numeric: tabular-nums; font-family: Consolas, monospace; }
+
+  /* ══════════════════════════════════════════════════════════
+     方向 A —— 「控制台」暗色三栏 · 密度优先
+     主张：主色收敛为单一 B站粉；导航折叠分组；结果紧凑列表；
+           右侧常驻「运行记录」时间线，历史不再往下挤
+     ══════════════════════════════════════════════════════════ */
+  [data-dir="A"] {
+    --bg: #090c11; --panel: #0e131a; --panel2: #121820; --line: rgba(255,255,255,.065);
+    --ink: #e6ecf5; --ink2: #9aa8bb; --ink3: #7d8b9c;
+    --pink: #fb7299; --pink2: #e8507c; --green: #3ddc97; --amber: #ffb020; --blue: #4aa8ff;
+    --mono: Consolas, 'Courier New', monospace;
+    background: var(--bg); color: var(--ink);
+    font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; font-size: 12.5px; line-height: 1.5;
+    display: flex; flex-direction: column;
+  }
+  .a-top { height: 52px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 14px;
+    background: #0b0f15; border-bottom: 1px solid var(--line); }
+  .a-brand { display: flex; align-items: center; gap: 8px; width: 200px; }
+  .a-mark { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
+    background: linear-gradient(140deg, var(--pink), var(--pink2)); color: #2a0d17; font-size: 10px; }
+  .a-brand b { font-size: 13.5px; font-weight: 700; letter-spacing: .01em; }
+  .a-brand b span { color: var(--ink3); font-weight: 400; }
+  .a-search { flex: 1; max-width: 460px; height: 30px; display: flex; align-items: center; gap: 8px;
+    padding: 0 10px; background: #080b10; border: 1px solid var(--line); border-radius: 8px; color: var(--ink3); }
+  .a-search kbd { margin-left: auto; font: 10px/1 var(--mono); color: #5f6c7d;
+    border: 1px solid rgba(255,255,255,.1); border-radius: 4px; padding: 3px 5px; }
+  .a-chips { display: flex; align-items: center; gap: 7px; margin-left: auto; }
+  .a-chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px;
+    border-radius: 6px; border: 1px solid var(--line); background: rgba(255,255,255,.025);
+    color: var(--ink2); font-size: 11px; white-space: nowrap; }
+  .a-chip.ok { color: var(--green); border-color: rgba(61,220,151,.28); background: rgba(61,220,151,.07); }
+  .a-chip i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .a-chip.mono { font-family: var(--mono); font-size: 10.5px; color: var(--ink3); }
+  .a-acts { display: flex; gap: 4px; }
+  .a-ibtn { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px;
+    border: 1px solid var(--line); color: var(--ink2); background: transparent; }
+  .a-ibtn.hot { color: var(--pink); border-color: rgba(251,114,153,.3); background: rgba(251,114,153,.08); }
+
+  .a-body { flex: 1; display: grid; grid-template-columns: 224px minmax(0,1fr) 296px; min-height: 0; }
+
+  /* 左：命令导航 */
+  .a-side { border-right: 1px solid var(--line); background: #0a0e14; display: flex; flex-direction: column;
+    min-height: 0; }
+  .a-side-search { margin: 10px 10px 6px; height: 28px; display: flex; align-items: center; gap: 7px;
+    padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink3); font-size: 11.5px;
+    background: #080b10; }
+  .a-side-scroll { flex: 1; overflow: hidden; padding: 0 8px 10px; }
+  .a-grp { display: flex; align-items: center; justify-content: space-between; padding: 12px 8px 5px;
+    font-size: 10px; letter-spacing: .13em; color: #66748a; }
+  .a-grp em { font-style: normal; font-family: var(--mono); font-size: 9.5px; color: #4d5a6d; }
+  .a-grp.fold::before { content: ''; width: 0; height: 0; margin-right: 6px;
+    border-left: 4px solid #4d5a6d; border-top: 3.5px solid transparent; border-bottom: 3.5px solid transparent; }
+  .a-grp.open::before { content: ''; width: 0; height: 0; margin-right: 6px;
+    border-top: 4px solid #fb7299; border-left: 3.5px solid transparent; border-right: 3.5px solid transparent; }
+  .a-it { display: flex; align-items: center; gap: 8px; height: 29px; padding: 0 8px; border-radius: 6px;
+    color: var(--ink2); font-size: 12px; }
+  .a-it .ic { color: #5c6a7e; }
+  .a-it.on { background: rgba(251,114,153,.1); color: #fff; box-shadow: inset 2px 0 0 var(--pink); }
+  .a-it.on .ic { color: var(--pink); }
+  .a-it .tail { margin-left: auto; font: 10px/1 var(--mono); color: var(--ink3); }
+  .a-side-foot { flex: none; border-top: 1px solid var(--line); padding: 8px 12px; display: flex;
+    align-items: center; gap: 7px; color: var(--ink3); font-size: 10.5px; }
+  .a-side-foot i { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+
+  /* 中：工作区 */
+  .a-mid { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0;
+    background: var(--bg); }
+  .a-cmdbar { display: flex; align-items: center; gap: 10px; }
+  .a-cmdt { font-size: 14.5px; font-weight: 650; letter-spacing: .01em; }
+  .a-cmdtag { font: 11px/1 var(--mono); color: #93a3b8; padding: 4px 7px; border-radius: 5px;
+    background: #080b10; border: 1px solid var(--line); }
+  .a-run { margin-left: auto; height: 28px; padding: 0 14px; display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 7px; background: linear-gradient(135deg, var(--pink), var(--pink2)); color: #fff;
+    font-size: 12px; font-weight: 600; box-shadow: 0 6px 16px -10px rgba(251,114,153,.9); }
+
+  .a-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  .a-form { padding: 12px 14px; display: grid; grid-template-columns: 1.4fr .8fr 1fr; gap: 12px 14px; }
+  .a-fld label { display: block; font-size: 10.5px; color: var(--ink3); margin-bottom: 5px; letter-spacing: .02em; }
+  .a-input { height: 28px; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    padding: 0 9px; border: 1px solid rgba(255,255,255,.09); border-radius: 6px; background: #0a0e14;
+    color: var(--ink); font-size: 12px; }
+  .a-input .ph { color: #5f6c7d; }
+  .a-input .num { font-family: var(--mono); }
+  .a-sw { display: flex; align-items: center; gap: 7px; height: 28px; color: var(--ink2); font-size: 11.5px; }
+  .a-sw .tr { width: 26px; height: 15px; border-radius: 9px; background: rgba(251,114,153,.85); position: relative; }
+  .a-sw .tr::after { content: ''; position: absolute; right: 2px; top: 2px; width: 11px; height: 11px;
+    border-radius: 50%; background: #fff; }
+  .a-prev { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+    border-radius: 6px; background: #070a0e; border: 1px dashed rgba(255,255,255,.09);
+    font-family: var(--mono); font-size: 11.5px; color: #8fa0b6; }
+  .a-prev b { color: var(--pink); font-weight: 400; }
+  .a-prev .cp { margin-left: auto; color: #4f5c6d; }
+
+  .a-res { flex: 0 0 auto; display: flex; flex-direction: column; }
+  .a-reshead { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .a-ok { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px; border-radius: 5px;
+    background: rgba(61,220,151,.12); border: 1px solid rgba(61,220,151,.3); color: var(--green);
+    font-size: 10.5px; font-weight: 600; }
+  .a-reshead code { font-family: var(--mono); font-size: 11.5px; color: var(--ink2); }
+  .a-reshead .rt { margin-left: auto; font: 11px/1 var(--mono); color: var(--ink3); }
+  .a-vlist { flex: 1; overflow: hidden; padding: 4px 14px 0; }
+  .a-vrow { display: grid; grid-template-columns: 92px minmax(0,1fr) 54px; gap: 11px; align-items: center;
+    padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.045); }
+  .a-vrow .cov { width: 92px; height: 52px; border-radius: 6px; }
+  .a-vrow .cov .dur { font-size: 9.5px; right: 4px; bottom: 4px; padding: 0 3px; line-height: 14px; }
+  .a-vt { font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 1.4;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .a-vs { margin-top: 3px; display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--ink3); }
+  .a-vs .up { color: #9fb0c6; }
+  .a-vs .sep { color: #3f4b5c; }
+  .a-vidx { text-align: right; font: 10px/1 var(--mono); color: #4f5c6d; }
+  .a-json { flex: none; padding: 9px 14px; border-top: 1px solid var(--line); display: flex; align-items: center;
+    gap: 7px; color: var(--ink3); font-size: 11px; }
+
+  /* 右：运行记录 */
+  .a-log { border-left: 1px solid var(--line); background: #0a0e14; padding: 12px 12px 0; display: flex;
+    flex-direction: column; min-height: 0; }
+  .a-log-h { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 10px; }
+  .a-log-h b { font-size: 11.5px; font-weight: 600; color: var(--ink2); letter-spacing: .04em; }
+  .a-log-h span { font: 10px/1 var(--mono); color: var(--ink3); }
+  .a-tl { position: relative; padding-left: 14px; flex: 1; overflow: hidden; }
+  .a-tl::before { content: ''; position: absolute; left: 3px; top: 4px; bottom: 0; width: 1px; background: rgba(255,255,255,.07); }
+  .a-evt { position: relative; padding-bottom: 13px; }
+  .a-evt::before { content: ''; position: absolute; left: -14px; top: 5px; width: 7px; height: 7px;
+    border-radius: 50%; background: #1a2029; border: 1px solid rgba(255,255,255,.18); }
+  .a-evt.ok::before { background: var(--green); border-color: var(--green); box-shadow: 0 0 0 3px rgba(61,220,151,.12); }
+  .a-evt.now::before { background: var(--pink); border-color: var(--pink); box-shadow: 0 0 0 3px rgba(251,114,153,.16); }
+  .a-evt .et { font: 10px/1 var(--mono); color: #5f6c7d; }
+  .a-evt .ec { margin-top: 4px; font: 11.5px/1.45 var(--mono); color: #b9c6d8; word-break: break-all; }
+  .a-evt .em { margin-top: 3px; font-size: 10.5px; color: var(--ink3); }
+  .a-note { margin: 6px 0 0; padding: 9px 10px; border-radius: 7px; background: rgba(251,114,153,.07);
+    border: 1px solid rgba(251,114,153,.18); color: #e3b7c5; font-size: 10.5px; line-height: 1.6; }
+
+  /* A 空态 */
+  .a-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border: 1px solid var(--line); border-radius: 10px; background:
+      radial-gradient(420px 200px at 50% 0%, rgba(251,114,153,.09), transparent 72%), var(--panel); }
+  .a-empty .halo { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center;
+    background: linear-gradient(140deg, var(--pink), var(--pink2)); color: #fff; margin-bottom: 12px;
+    box-shadow: 0 12px 28px -14px rgba(251,114,153,.9); }
+  .a-empty h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .a-empty p { max-width: 380px; text-align: center; color: var(--ink3); font-size: 11.5px; line-height: 1.75; }
+  .a-quick { display: flex; gap: 7px; margin-top: 14px; }
+  .a-quick span { height: 24px; display: inline-flex; align-items: center; padding: 0 9px; border-radius: 6px;
+    border: 1px solid var(--line); background: rgba(255,255,255,.03); color: var(--ink2); font-size: 11px;
+    font-family: var(--mono); }
+  .a-quick span.hot { border-color: rgba(251,114,153,.32); color: #ffb3c8; background: rgba(251,114,153,.08); }
+  .a-qrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; width: 100%; max-width: 560px; }
+  .a-qcard { padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.022);
+    text-align: left; }
+  .a-qcard .qi { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px;
+    background: rgba(251,114,153,.1); color: var(--pink); margin-bottom: 7px; }
+  .a-qcard b { display: block; font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+  .a-qcard span { font-size: 10px; color: var(--ink3); line-height: 1.55; display: block; }
+  .a-qcard code { display: block; margin-top: 6px; font: 9.5px/1 var(--mono); color: #5f6c7d; }
+
+  /* ══════════════════════════════════════════════════════════
+     方向 B —— 「阅读器」浅色 · 搜索为主入口
+     主张：明色；命令不再是树，而是「先搜后浏览」；
+           结果按阅读流排（横向卡），字号放大到 14.5
+     ══════════════════════════════════════════════════════════ */
+  [data-dir="B"] {
+    --bg: #f4f6f9; --panel: #ffffff; --line: #e6e9f0; --line2: #eef1f6;
+    --ink: #141a22; --ink2: #475264; --ink3: #66717f;
+    --pink: #d94a76; --pink-soft: #fdeef3; --green: #12996a; --amber: #b3700a;
+    --mono: Consolas, monospace;
+    background: var(--bg); color: var(--ink);
+    font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; font-size: 14.5px; line-height: 1.6;
+    display: flex;
+  }
+  .b-rail { width: 56px; flex: none; background: #fff; border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 6px; }
+  .b-rbtn { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; color: #8b95a4; }
+  .b-rbtn .ic { width: 18px; height: 18px; }
+  .b-rbtn.on { background: var(--pink-soft); color: var(--pink); }
+  .b-rmark { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+    background: linear-gradient(140deg, #ff8fae, var(--pink)); color: #fff; margin-bottom: 10px; }
+  .b-rdiv { width: 22px; height: 1px; background: var(--line); margin: 4px 0; }
+  .b-rfoot { margin-top: auto; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    background: linear-gradient(140deg, #ffd2df, #f8a9c1); color: #8d2b48; font-size: 11px; font-weight: 700; }
+
+  .b-main { flex: 1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .b-top { height: 56px; flex: none; display: flex; align-items: center; justify-content: center; padding: 0 32px; }
+  .b-inner { width: 960px; display: flex; align-items: center; gap: 10px; }
+  .b-top .b-brand { font-size: 13px; font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+  .b-top .b-brand span { color: #a2acba; font-weight: 400; }
+  .b-top .sp { flex: 1; }
+  .b-tchip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 8px;
+    background: #fff; border: 1px solid var(--line); color: var(--ink2); font-size: 12px; }
+  .b-tchip i { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  .b-tchip.ver { font-family: var(--mono); font-size: 11px; color: var(--ink3); }
+  .b-body { flex: 1; overflow: hidden; display: flex; justify-content: center; padding: 4px 32px 0; }
+  .b-col { width: 960px; }
+
+  .b-hero { padding: 18px 0 14px; }
+  .b-hero h1 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; margin-bottom: 4px; }
+  .b-hero p { color: var(--ink3); font-size: 13px; }
+  .b-search { height: 54px; display: flex; align-items: center; gap: 12px; padding: 0 8px 0 18px;
+    background: #fff; border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 10px 26px -20px rgba(20,30,50,.45); margin: 14px 0; }
+  .b-search .ic { width: 19px; height: 19px; color: #98a2b1; }
+  .b-search .ph { flex: 1; color: #98a2b1; font-size: 15px; }
+  .b-search .q { flex: 1; font-size: 15px; color: var(--ink); font-weight: 600; }
+  .b-search .go { height: 38px; padding: 0 18px; display: inline-flex; align-items: center; gap: 7px;
+    border-radius: 10px; background: var(--pink); color: #fff; font-size: 13.5px; font-weight: 600; }
+  .b-search kbd { font: 11px/1 var(--mono); color: #a2acba; border: 1px solid var(--line); border-radius: 5px;
+    padding: 4px 6px; }
+
+  .b-sec { display: flex; align-items: baseline; gap: 9px; margin: 22px 0 11px; }
+  .b-sec h2 { font-size: 13px; font-weight: 700; letter-spacing: .06em; color: var(--ink); }
+  .b-sec span { font-size: 12px; color: var(--ink3); }
+  .b-sec .more { margin-left: auto; font-size: 12px; color: var(--pink); }
+  .b-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .b-tcard { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px;
+    display: flex; flex-direction: column; gap: 6px; }
+  .b-tcard .ti { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+    background: var(--pink-soft); color: var(--pink); margin-bottom: 3px; }
+  .b-tcard b { font-size: 13.5px; font-weight: 700; }
+  .b-tcard p { font-size: 12px; color: var(--ink3); line-height: 1.55; }
+  .b-tcard code { font: 11px/1 var(--mono); color: #9aa4b2; }
+
+  /* B 结果：横向阅读卡 */
+  .b-res { background: #fff; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .b-resh { display: flex; align-items: center; gap: 10px; padding: 13px 18px; border-bottom: 1px solid var(--line2); }
+  .b-resh .ok { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 6px;
+    background: #e8f8f1; color: var(--green); font-size: 11.5px; font-weight: 600; }
+  .b-resh code { font: 12px/1 var(--mono); color: var(--ink2); }
+  .b-resh .t { margin-left: auto; font: 11.5px/1 var(--mono); color: #9aa4b2; }
+  .b-row { display: grid; grid-template-columns: 160px minmax(0,1fr); gap: 14px; padding: 13px 18px;
+    border-bottom: 1px solid var(--line2); }
+  .b-row .cov { width: 160px; height: 90px; border-radius: 10px; }
+  .b-row h3 { font-size: 14.5px; font-weight: 700; line-height: 1.45; color: var(--ink); }
+  .b-row .up { margin-top: 5px; font-size: 12.5px; color: var(--ink3); }
+  .b-row .up b { color: var(--ink2); font-weight: 600; }
+  .b-row .nums { margin-top: 7px; display: flex; gap: 14px; font-size: 12px; color: var(--ink3);
+    font-variant-numeric: tabular-nums; }
+  .b-row .nums span { display: inline-flex; align-items: center; gap: 4px; }
+  .b-row .nums .ic { width: 13px; height: 13px; color: #b3bcc8; }
+  .b-fade { height: 28px; background: linear-gradient(#fff, rgba(255,255,255,0)); }
+
+  /* B 视频详情 */
+  .b-vhead { display: grid; grid-template-columns: 300px minmax(0,1fr); gap: 20px; padding: 6px 0 18px; }
+  .b-vhead .cov { width: 300px; height: 169px; border-radius: 14px; }
+  .b-vhead h1 { font-size: 20px; font-weight: 700; line-height: 1.4; letter-spacing: -.01em; }
+  .b-vhead .meta { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .b-vhead .meta span { font-size: 12px; color: var(--ink3); background: #eef1f6; border-radius: 6px; padding: 3px 8px; }
+  .b-quote { margin: 0 0 4px; padding: 14px 16px; background: #fbfcfe; border: 1px solid var(--line);
+    border-left: 3px solid var(--pink); border-radius: 4px 10px 10px 4px; font-size: 13.5px; line-height: 1.8;
+    color: var(--ink2); }
+  .b-frames { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .b-frames .f { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+  .b-frames .cov { width: 100%; aspect-ratio: 16/9; }
+  .b-frames .cap { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #fff;
+    font-size: 11.5px; color: var(--ink3); }
+  .b-frames .cap b { font: 11px/1 var(--mono); color: var(--pink); font-weight: 600; }
+  .b-fold { margin-top: 12px; display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: #fff;
+    border: 1px solid var(--line); border-radius: 12px; font-size: 13px; color: var(--ink2); }
+  .b-fold .r { margin-left: auto; color: #9aa4b2; font: 11.5px/1 var(--mono); }
+
+  /* ══════════════════════════════════════════════════════════
+     方向 C —— 「工作台」深冷双栏 · 上下文常驻
+     主张：一级只留 4 个任务；参数不跳页，常驻右栏；
+           标题用宋体拉出杂志感，粉只作强调点
+     ══════════════════════════════════════════════════════════ */
+  [data-dir="C"] {
+    --bg: #070a0f; --panel: #0c1119; --panel2: #101720; --line: rgba(186,214,255,.08);
+    --ink: #dfe7f2; --ink2: #9db0c6; --ink3: #74869c;
+    --pink: #fb7299; --green: #3ddc97; --amber: #ffb020; --blue: #6aa9ff;
+    --serif: SimSun, 'Songti SC', serif; --mono: Consolas, monospace;
+    background:
+      radial-gradient(900px 420px at 12% -10%, rgba(70,110,190,.12), transparent 62%),
+      radial-gradient(700px 380px at 96% 4%, rgba(251,114,153,.06), transparent 60%), var(--bg);
+    color: var(--ink); font-family: 'Microsoft YaHei', sans-serif; font-size: 13px; line-height: 1.6;
+    display: flex;
+  }
+  .c-rail { width: 64px; flex: none; border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; align-items: center; padding: 14px 0 12px; gap: 3px;
+    background: rgba(10,15,22,.6); }
+  .c-mark { width: 26px; height: 26px; border-radius: 4px; display: grid; place-items: center;
+    border: 1px solid rgba(251,114,153,.4); color: var(--pink); font-size: 11px; margin-bottom: 16px; }
+  .c-rn { width: 48px; padding: 9px 0 8px; display: flex; flex-direction: column; align-items: center; gap: 5px;
+    color: var(--ink3); border-radius: 4px; }
+  .c-rn .ic { width: 17px; height: 17px; }
+  .c-rn em { font-style: normal; font-size: 10px; letter-spacing: .08em; }
+  .c-rn.on { color: var(--pink); background: rgba(251,114,153,.07); box-shadow: inset 0 -1px 0 var(--pink); }
+  .c-ra { margin-top: auto; color: var(--ink3); font-size: 10px; text-align: center; }
+
+  .c-main { flex: 1; min-width: 0; display: flex; min-height: 0; }
+  .c-content { flex: 1; min-width: 0; padding: 26px 30px 0; overflow: hidden; }
+  .c-crumb { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink3);
+    letter-spacing: .04em; }
+  .c-crumb b { color: var(--ink2); font-weight: 400; }
+  .c-ttl { font-family: var(--serif); font-size: 26px; line-height: 1.35; letter-spacing: .02em;
+    margin: 9px 0 5px; color: #eef3fa; }
+  .c-sub { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--ink3); }
+  .c-sub code { font-family: var(--mono); font-size: 11px; padding: 3px 7px; border-radius: 3px;
+    background: rgba(255,255,255,.04); border: 1px solid var(--line); color: #9cb3cc; }
+  .c-rule { height: 1px; background: linear-gradient(90deg, rgba(251,114,153,.5), var(--line) 32%, transparent);
+    margin: 16px 0 18px; }
+  .c-tabs { display: flex; gap: 22px; font-size: 12px; color: var(--ink3); margin-bottom: 16px; }
+  .c-tabs .on { color: var(--ink); position: relative; }
+  .c-tabs .on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -8px; height: 1px;
+    background: var(--pink); }
+  .c-tabs em { font-style: normal; font-family: var(--mono); font-size: 10px; color: #5d6b7c; margin-left: 7px; }
+
+  /* C 结果网格 */
+  .c-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px 18px; }
+  .c-card { display: flex; flex-direction: column; }
+  .c-card .cov { width: 100%; aspect-ratio: 16/9; border-radius: 3px; }
+  .c-card .no { font-family: var(--mono); font-size: 10px; color: var(--pink); letter-spacing: .1em;
+    margin: 9px 0 4px; }
+  .c-card h4 { font-size: 13.5px; font-weight: 600; line-height: 1.5; color: var(--ink);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .c-card .m { margin-top: 5px; display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--ink3);
+    font-variant-numeric: tabular-nums; }
+  .c-card .m .u { color: #93a9c2; }
+
+  /* C 右：上下文面板 */
+  .c-aside { width: 328px; flex: none; border-left: 1px solid var(--line); background: rgba(9,13,20,.72);
+    padding: 24px 22px 0; display: flex; flex-direction: column; min-height: 0; }
+  .c-ah { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .c-ah b { font-family: var(--serif); font-size: 14px; font-weight: 400; letter-spacing: .06em; color: #e7eef8; }
+  .c-ah span { font: 10px/1 var(--mono); color: #5d6b7c; }
+  .c-fld { margin-bottom: 13px; }
+  .c-fld label { display: block; font-size: 10.5px; color: var(--ink3); letter-spacing: .08em; margin-bottom: 6px; }
+  .c-in { height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px;
+    border: 1px solid var(--line); border-radius: 2px; background: rgba(255,255,255,.025);
+    font-size: 12px; color: var(--ink); }
+  .c-in .ph { color: #62748a; }
+  .c-in .n { font-family: var(--mono); font-size: 11.5px; color: #adc0d6; }
+  .c-step { display: flex; align-items: center; gap: 0; border: 1px solid var(--line); border-radius: 2px;
+    background: rgba(255,255,255,.025); height: 30px; }
+  .c-step span { flex: 1; text-align: center; font-family: var(--mono); font-size: 12px; color: #adc0d6; }
+  .c-step i { width: 28px; text-align: center; color: #62748a; font-style: normal; font-size: 13px; }
+  .c-row { display: flex; align-items: center; justify-content: space-between; height: 30px;
+    font-size: 12px; color: var(--ink2); }
+  .c-tg { width: 28px; height: 16px; border-radius: 8px; background: rgba(251,114,153,.75); position: relative; }
+  .c-tg::after { content: ''; position: absolute; right: 2px; top: 2px; width: 12px; height: 12px;
+    border-radius: 50%; background: #fff; }
+  .c-tg.off { background: rgba(255,255,255,.1); }
+  .c-tg.off::after { right: auto; left: 2px; background: #7a8a9e; }
+  .c-go { margin-top: 18px; height: 36px; display: flex; align-items: center; justify-content: center; gap: 7px;
+    background: linear-gradient(135deg, var(--pink), #e0507c); color: #fff; font-size: 12.5px; font-weight: 600;
+    border-radius: 2px; letter-spacing: .06em; }
+  .c-dash { margin: 18px 0 0; border-top: 1px solid var(--line); padding-top: 14px; }
+  .c-kv { display: flex; justify-content: space-between; font-size: 11.5px; padding: 4px 0; color: var(--ink3); }
+  .c-kv b { font-family: var(--mono); font-weight: 400; color: #a8bcd2; }
+  .c-tip { margin-top: 14px; padding: 10px 11px; border-radius: 3px; background: rgba(106,169,255,.06);
+    border: 1px solid rgba(106,169,255,.16); color: #a8c4e2; font-size: 11px; line-height: 1.7; }
+
+  /* C 视频页 */
+  .c-vh { display: grid; grid-template-columns: 236px minmax(0,1fr); gap: 20px; }
+  .c-vh .cov { width: 236px; height: 133px; border-radius: 3px; }
+  .c-vh h1 { font-family: var(--serif); font-size: 20px; line-height: 1.45; letter-spacing: .01em; color: #f0f5fc; }
+  .c-vh .m { margin-top: 9px; display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: var(--ink3); }
+  .c-vh .m .u { color: #a3b8cf; }
+  .c-sum { margin-top: 16px; font-size: 13px; line-height: 1.95; color: #c4d1e0; padding-left: 13px;
+    border-left: 1px solid rgba(251,114,153,.45); }
+  .c-frames { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+  .c-frames .f .cov { width: 100%; aspect-ratio: 16/9; border-radius: 2px; }
+  .c-frames .f .cap { margin-top: 5px; display: flex; justify-content: space-between; font-size: 10.5px;
+    color: var(--ink3); }
+  .c-frames .f .cap b { font-family: var(--mono); color: #8fa6bf; font-weight: 400; }
+  .c-chap { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.04);
+    font-size: 11.5px; color: var(--ink2); }
+  .c-chap b { font-family: var(--mono); font-weight: 400; color: var(--pink); font-size: 10.5px; width: 34px; flex: none; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c1.6-3.6 4.2-5.4 7.2-5.4s5.6 1.8 7.2 5.4"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10.6 9.4 15 12l-4.4 2.6z"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3 13.5 5.6 5h12.8L21 13.5V19H3z"/><path d="M3 13.5h5l1 2h6l1-2h5"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 4 2.5 5.2 5.5.8-4 3.9.9 5.6-4.9-2.7-4.9 2.7.9-5.6-4-3.9 5.5-.8z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M10.2 8.6 15.4 12l-5.2 3.4z"/></symbol>
+  <symbol id="i-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6 6l1.6 1.6M16.4 16.4 18 18M18 6l-1.6 1.6M7.6 16.4 6 18"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.6 12a7.6 7.6 0 1 1-2.3-5.4"/><path d="M20 4v4.2h-4.2"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+  <symbol id="i-fire" viewBox="0 0 24 24"><path d="M12 3.5c3 3.4 1.4 5.6 3.2 7.4 1 .9 2 1.3 2 3.3a5.2 5.2 0 0 1-10.4 0c0-2.4 1.6-3.4 2.4-5.2"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6.4 4h11.2v16L12 15.8 6.4 20z"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M4 5.5h16v10.6H9.6L4 20z"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M20.5 3.5 10 14"/><path d="M20.5 3.5 14.2 21l-4.2-7-7-4.2z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5 19 6v6c0 4-3 7-7 8.5-4-1.5-7-4.5-7-8.5V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V9M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3.5h8l4 4V20H6z"/><path d="M14 3.5V8h4"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+  <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.8v8.4M9.6 10h4.2M9.6 13.6h4.2"/></symbol>
+</svg>
+
+<!-- ══════════════════════ A1 · 首页 ══════════════════════ -->
+<div class="frame" data-shot="A1-home" data-dir="A">
+  <header class="a-top">
+    <div class="a-brand"><span class="a-mark"><svg class="ic" style="width:11px;height:11px"><use href="#i-play"/></svg></span><b>bili<span>·view</span></b></div>
+    <div class="a-search"><svg class="ic" style="width:13px;height:13px"><use href="#i-search"/></svg><span>搜索 106 条命令 · 账号 / 视频 / 互动 / 刷B站</span><kbd>Ctrl K</kbd></div>
+    <div class="a-chips">
+      <span class="a-chip mono">bili 0.6.0</span>
+      <span class="a-chip ok"><i></i>星宝 · Lv6</span>
+      <span class="a-chip">主人 · 老白</span>
+    </div>
+    <div class="a-acts">
+      <span class="a-ibtn"><svg class="ic"><use href="#i-cog"/></svg></span>
+      <span class="a-ibtn hot"><svg class="ic"><use href="#i-shield"/></svg></span>
+      <span class="a-ibtn"><svg class="ic"><use href="#i-refresh"/></svg></span>
+    </div>
+  </header>
+  <div class="a-body">
+    <aside class="a-side">
+      <div class="a-side-search"><svg class="ic" style="width:12px;height:12px"><use href="#i-search"/></svg>筛选命令…</div>
+      <div class="a-side-scroll" id="a1-nav"></div>
+      <div class="a-side-foot"><i></i>8811 · 后端在线 · 缓存 4:12</div>
+    </aside>
+    <main class="a-mid">
+      <div class="a-cmdbar">
+        <span class="a-cmdt">从左边挑一条命令</span>
+        <span class="a-cmdtag">106 commands</span>
+      </div>
+      <div class="a-empty" style="margin-top:2px">
+        <div class="halo"><svg class="ic" style="width:19px;height:19px"><use href="#i-grid"/></svg></div>
+        <h3>挑一条命令，结果会渲染成卡片</h3>
+        <p>视频、字幕、热评、UP 主数据都走同一套渲染器；写操作默认带 --dry-run 预览，不会真的发出去。</p>
+        <div class="a-qrow">
+          <div class="a-qcard"><div class="qi"><svg class="ic" style="width:12px;height:12px"><use href="#i-eye"/></svg></div><b>看懂视频</b><span>字幕 · 抽帧 · 热评一次出全</span><code>video.watch</code></div>
+          <div class="a-qcard"><div class="qi"><svg class="ic" style="width:12px;height:12px"><use href="#i-fire"/></svg></div><b>分区排行</b><span>按分区拉热榜，卡片直读</span><code>hot.rank</code></div>
+          <div class="a-qcard"><div class="qi"><svg class="ic" style="width:12px;height:12px"><use href="#i-inbox"/></svg></div><b>收件箱</b><span>回复 / @ / 赞 / 未读数</span><code>feed.inbox</code></div>
+        </div>
+      </div>
+      <div class="a-note" style="margin:0">提示 · bili schema 拉起 14 组 106 条命令用了 1.2s，面板跟随 schema 自动更新，不用改前端。</div>
+    </main>
+    <aside class="a-log">
+      <div class="a-log-h"><b>本次运行</b><span>3 / 12</span></div>
+      <div class="a-tl" id="a1-log"></div>
+      <div class="a-note">写操作（点赞 / 投币 / 评论 / 私信 / 动态）勾了 dry-run，只回显不发出。</div>
+    </aside>
+  </div>
+</div>
+
+<!-- ══════════════════════ A2 · 分区排行 ══════════════════════ -->
+<div class="frame" data-shot="A2-rank" data-dir="A">
+  <header class="a-top">
+    <div class="a-brand"><span class="a-mark"><svg class="ic" style="width:11px;height:11px"><use href="#i-play"/></svg></span><b>bili<span>·view</span></b></div>
+    <div class="a-search"><svg class="ic" style="width:13px;height:13px"><use href="#i-search"/></svg><span>hot rank — 1 条匹配</span><kbd>Ctrl K</kbd></div>
+    <div class="a-chips">
+      <span class="a-chip mono">bili 0.6.0</span>
+      <span class="a-chip ok"><i></i>星宝 · Lv6</span>
+      <span class="a-chip">主人 · 老白</span>
+    </div>
+    <div class="a-acts">
+      <span class="a-ibtn"><svg class="ic"><use href="#i-cog"/></svg></span>
+      <span class="a-ibtn hot"><svg class="ic"><use href="#i-shield"/></svg></span>
+      <span class="a-ibtn"><svg class="ic"><use href="#i-refresh"/></svg></span>
+    </div>
+  </header>
+  <div class="a-body">
+    <aside class="a-side">
+      <div class="a-side-search"><svg class="ic" style="width:12px;height:12px"><use href="#i-search"/></svg>筛选命令…</div>
+      <div class="a-side-scroll" id="a2-nav"></div>
+      <div class="a-side-foot"><i></i>8811 · 后端在线 · 缓存 4:12</div>
+    </aside>
+    <main class="a-mid">
+      <div class="a-cmdbar">
+        <svg class="ic" style="width:15px;height:15px;color:#fb7299"><use href="#i-fire"/></svg>
+        <span class="a-cmdt">分区排行</span>
+        <span class="a-cmdtag">bili hot rank</span>
+        <span class="a-run"><svg class="ic" style="width:12px;height:12px"><use href="#i-play"/></svg>运行</span>
+      </div>
+      <div class="a-card a-form">
+        <div class="a-fld"><label>分区 zone</label><div class="a-input"><span>tech · 科技</span><svg class="ic" style="width:11px;height:11px;color:#62718a"><use href="#i-chev"/></svg></div></div>
+        <div class="a-fld"><label>条数 limit</label><div class="a-input"><span class="num">6</span><svg class="ic" style="width:11px;height:11px;color:#62718a"><use href="#i-chev"/></svg></div></div>
+        <div class="a-fld"><label>过滤</label><div class="a-sw"><span class="tr"></span>只看没看过的</div></div>
+        <div class="a-prev"><b>bili</b> hot rank --zone tech --limit 6<span class="cp">已加 dry-run</span></div>
+      </div>
+      <div class="a-card a-res">
+        <div class="a-reshead">
+          <span class="a-ok"><svg class="ic" style="width:10px;height:10px"><use href="#i-shield"/></svg>执行成功</span>
+          <code>bili hot rank --zone tech --limit 6</code>
+          <span class="rt">6 条 · 2.06s</span>
+        </div>
+        <div class="a-vlist" id="a2-videos"></div>
+        <div class="a-json"><svg class="ic" style="width:12px;height:12px"><use href="#i-doc"/></svg>原始 JSON · 8.4 KB<svg class="ic" style="width:11px;height:11px;margin-left:auto;color:#4f5c6d"><use href="#i-chev"/></svg></div>
+      </div>
+    </main>
+    <aside class="a-log">
+      <div class="a-log-h"><b>本次运行</b><span>4 / 12</span></div>
+      <div class="a-tl" id="a2-log"></div>
+      <div class="a-note">这一条 2.06s，其中 bili 子进程 1.71s、封面代理首次取图 0.35s（之后走内存缓存）。</div>
+    </aside>
+  </div>
+</div>
+
+<!-- ══════════════════════ A3 · 看懂视频 ══════════════════════ -->
+<div class="frame" data-shot="A3-watch" data-dir="A">
+  <header class="a-top">
+    <div class="a-brand"><span class="a-mark"><svg class="ic" style="width:11px;height:11px"><use href="#i-play"/></svg></span><b>bili<span>·view</span></b></div>
+    <div class="a-search"><svg class="ic" style="width:13px;height:13px"><use href="#i-search"/></svg><span>video.watch — 1 条匹配</span><kbd>Ctrl K</kbd></div>
+    <div class="a-chips">
+      <span class="a-chip mono">bili 0.6.0</span>
+      <span class="a-chip ok"><i></i>星宝 · Lv6</span>
+      <span class="a-chip">主人 · 老白</span>
+    </div>
+    <div class="a-acts">
+      <span class="a-ibtn"><svg class="ic"><use href="#i-cog"/></svg></span>
+      <span class="a-ibtn hot"><svg class="ic"><use href="#i-shield"/></svg></span>
+      <span class="a-ibtn"><svg class="ic"><use href="#i-refresh"/></svg></span>
+    </div>
+  </header>
+  <div class="a-body">
+    <aside class="a-side">
+      <div class="a-side-search"><svg class="ic" style="width:12px;height:12px"><use href="#i-search"/></svg>筛选命令…</div>
+      <div class="a-side-scroll" id="a3-nav"></div>
+      <div class="a-side-foot"><i></i>8811 · 后端在线 · 缓存 4:12</div>
+    </aside>
+    <main class="a-mid">
+      <div class="a-cmdbar">
+        <svg class="ic" style="width:15px;height:15px;color:#fb7299"><use href="#i-eye"/></svg>
+        <span class="a-cmdt">看懂视频</span>
+        <span class="a-cmdtag">bili video watch</span>
+        <span class="a-run"><svg class="ic" style="width:12px;height:12px"><use href="#i-play"/></svg>运行</span>
+      </div>
+      <div class="a-card" style="padding:12px 14px;display:grid;grid-template-columns:1.5fr .7fr;gap:14px">
+        <div class="a-fld"><label>视频号 / 链接</label><div class="a-input"><span style="font-family:Consolas,monospace">BV1xT6zF5EvD</span></div></div>
+        <div class="a-fld"><label>正文字数</label><div class="a-input"><span class="num">2000</span></div></div>
+        <div class="a-prev" style="grid-column:1/-1"><b>bili</b> video watch BV1xT6zF5EvD --max-chars 2000<span class="cp">4.55s</span></div>
+      </div>
+      <div class="a-card a-res">
+        <div class="a-reshead">
+          <span class="a-ok">执行成功</span>
+          <code>video.watch · 1 条结果</code>
+          <span class="rt">4.55s</span>
+        </div>
+        <div style="padding:12px 14px 0">
+          <div style="font-size:14px;font-weight:650;line-height:1.45">折1万次、会坏吗？iPhone Duo 深度评测</div>
+          <div style="margin-top:6px;display:flex;gap:12px;font-size:10.5px;color:#7d8b9c">
+            <span style="color:#9fb0c6">影视飓风</span><span>24:52</span><span>211.9万 播放</span><span>13.2万 赞</span><span>5.0万 币</span><span>1.9万 藏</span>
+          </div>
+          <div style="margin-top:10px;padding:9px 12px;border-radius:7px;background:linear-gradient(90deg,rgba(167,139,250,.1),transparent);border:1px solid rgba(167,139,250,.18);border-left:2px solid #a78bfa;font-size:11.5px;line-height:1.75;color:#cfd8e6">
+            iPhone Duo 折叠屏 500 次折叠后折痕微小，铰链与电池表现优异，1 万次测试后铰链依旧稳定但转录在软件提示 bug，大屏优势明显，多屏协作优化流畅，影像系统强大，融合 15 年研发创新。
+          </div>
+        </div>
+        <div class="a-vlist" style="padding:10px 14px 0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:10.5px;color:#7d8b9c">
+            <span>抽帧 · 8 / 9</span><span style="color:#3f4b5c">|</span><span>字幕全文 2000 字</span><span style="color:#3f4b5c">|</span><span>热评 5 条</span>
+          </div>
+          <div id="a3-frames" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
+        </div>
+        <div class="a-json"><svg class="ic" style="width:12px;height:12px"><use href="#i-doc"/></svg>原始 JSON · 32.6 KB<svg class="ic" style="width:11px;height:11px;margin-left:auto;color:#4f5c6d"><use href="#i-chev"/></svg></div>
+      </div>
+    </main>
+    <aside class="a-log">
+      <div class="a-log-h"><b>字幕 · 前 4 段</b><span>2000 字</span></div>
+      <div style="flex:1;overflow:hidden;font-size:11.5px;line-height:1.85;color:#a9b8ca">
+        <p style="margin-bottom:9px"><span style="font-family:Consolas,monospace;font-size:10px;color:#5f6c7d;margin-right:6px">00:00</span>大家好，我是影视飓风的 Tim，今天我们来聊聊这台折叠屏。</p>
+        <p style="margin-bottom:9px"><span style="font-family:Consolas,monospace;font-size:10px;color:#5f6c7d;margin-right:6px">00:18</span>我们把这一台机器连续折了一万次，然后再来看它的折痕。</p>
+        <p style="margin-bottom:9px"><span style="font-family:Consolas,monospace;font-size:10px;color:#5f6c7d;margin-right:6px">01:19</span>左边是全新机，右边是折了一万次之后的，可以看到中间这条线的差异其实很小。</p>
+        <p style="margin-bottom:9px"><span style="font-family:Consolas,monospace;font-size:10px;color:#5f6c7d;margin-right:6px">04:05</span>铰链的阻尼感保持得不错，一万次之后依然能停在半开状态。</p>
+      </div>
+      <div class="a-note" style="margin-bottom:12px">字幕 2000 字已截断，需要全文把 --max-chars 调大。</div>
+    </aside>
+  </div>
+</div>
+
+<!-- ══════════════════════ B1 · 首页 ══════════════════════ -->
+<div class="frame" data-shot="B1-home" data-dir="B">
+  <nav class="b-rail">
+    <div class="b-rmark"><svg class="ic" style="width:14px;height:14px"><use href="#i-play"/></svg></div>
+    <div class="b-rbtn on"><svg class="ic"><use href="#i-search"/></svg></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-inbox"/></svg></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-bookmark"/></svg></div>
+    <div class="b-rdiv"></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-chart"/></svg></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-send"/></svg></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-shield"/></svg></div>
+    <div class="b-rbtn" style="margin-top:auto"><svg class="ic"><use href="#i-cog"/></svg></div>
+    <div class="b-rfoot">星</div>
+  </nav>
+  <div class="b-main">
+    <div class="b-top">
+      <div class="b-inner">
+        <div class="b-brand">bili<span>·view</span></div>
+        <div class="sp"></div>
+        <span class="b-tchip ver">bili 0.6.0</span>
+        <span class="b-tchip"><i></i>星宝 · Lv6</span>
+        <span class="b-tchip">主人 · 老白</span>
+      </div>
+    </div>
+    <div class="b-body">
+      <div class="b-col">
+        <div class="b-hero">
+          <h1>想看点什么？</h1>
+          <p>106 条 bili 命令，搜一下就行 —— 不用记是哪个分组。</p>
+        </div>
+        <div class="b-search">
+          <svg class="ic"><use href="#i-search"/></svg>
+          <span class="ph">搜索命令 / UP 主 / 视频号，比如「看懂」「BV1xT6」</span>
+          <kbd>Ctrl K</kbd>
+          <span class="go"><svg class="ic" style="width:13px;height:13px"><use href="#i-play"/></svg>搜索</span>
+        </div>
+
+        <div class="b-sec"><h2>常用</h2><span>点开就直接带参数</span></div>
+        <div class="b-cards">
+          <div class="b-tcard">
+            <div class="ti"><svg class="ic"><use href="#i-eye"/></svg></div>
+            <b>看懂视频</b>
+            <p>抓字幕、抽帧、热评，一次出全</p>
+            <code>video.watch</code>
+          </div>
+          <div class="b-tcard">
+            <div class="ti"><svg class="ic"><use href="#i-fire"/></svg></div>
+            <b>分区排行</b>
+            <p>按分区拉热榜，卡片直接看</p>
+            <code>hot.rank</code>
+          </div>
+          <div class="b-tcard">
+            <div class="ti"><svg class="ic"><use href="#i-inbox"/></svg></div>
+            <b>收件箱</b>
+            <p>回复、@、赞、未读数一次收齐</p>
+            <code>feed.inbox</code>
+          </div>
+        </div>
+
+        <div class="b-sec"><h2>最近跑过</h2><span class="more">全部 12 条 ›</span></div>
+        <div class="b-res">
+          <div class="b-row" style="border-bottom:none">
+            <div class="cov g3"><span class="name">封面占位</span><span class="dur">24:52</span></div>
+            <div>
+              <h3>折1万次、会坏吗？iPhone Duo 深度评测</h3>
+              <div class="up"><b>影视飓风</b> · 今天 13:21 · 耗时 4.55s</div>
+              <div class="nums"><span><svg class="ic"><use href="#i-play"/></svg>211.9万</span><span><svg class="ic"><use href="#i-star"/></svg>13.2万</span><span><svg class="ic"><use href="#i-eye"/></svg>字幕 2000 字</span><span><svg class="ic"><use href="#i-grid"/></svg>抽帧 9 张</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="b-sec"><h2>值班在跑</h2><span>谷时窗口 01:00 – 06:00 · 今日 3 / 5 条</span></div>
+        <div class="b-fold"><svg class="ic" style="color:#12996a"><use href="#i-shield"/></svg>上一轮 02:14 完成，收了 3 条、跳过 2 条<span class="r">她看过什么 ›</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ B2 · 分区排行 ══════════════════════ -->
+<div class="frame" data-shot="B2-rank" data-dir="B">
+  <nav class="b-rail">
+    <div class="b-rmark"><svg class="ic" style="width:14px;height:14px"><use href="#i-play"/></svg></div>
+    <div class="b-rbtn on"><svg class="ic"><use href="#i-search"/></svg></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-inbox"/></svg></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-bookmark"/></svg></div>
+    <div class="b-rdiv"></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-chart"/></svg></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-send"/></svg></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-shield"/></svg></div>
+    <div class="b-rbtn" style="margin-top:auto"><svg class="ic"><use href="#i-cog"/></svg></div>
+    <div class="b-rfoot">星</div>
+  </nav>
+  <div class="b-main">
+    <div class="b-top">
+      <div class="b-inner">
+        <div class="b-brand">bili<span>·view</span></div>
+        <div class="sp"></div>
+        <span class="b-tchip ver">bili 0.6.0</span>
+        <span class="b-tchip"><i></i>星宝 · Lv6</span>
+        <span class="b-tchip">主人 · 老白</span>
+      </div>
+    </div>
+    <div class="b-body">
+      <div class="b-col">
+        <div class="b-search" style="margin-top:14px">
+          <svg class="ic"><use href="#i-search"/></svg>
+          <span class="q">hot rank</span>
+          <span style="font-size:12px;color:#98a2b1;border-left:1px solid #e6e9f0;padding-left:12px">1 条命令</span>
+          <span class="go"><svg class="ic" style="width:13px;height:13px"><use href="#i-play"/></svg>运行</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:9px;margin:12px 0 4px">
+          <span style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:8px;background:#fff;border:1px solid #e6e9f0;font-size:12.5px;color:#475264">分区 <b style="color:#141a22">tech · 科技</b> ›</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:8px;background:#fff;border:1px solid #e6e9f0;font-size:12.5px;color:#475264">条数 <b style="color:#141a22">6</b> ›</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:8px;background:#fdeef3;border:1px solid #f6d3df;font-size:12.5px;color:#d94a76">只看没看过 <b>开</b></span>
+        </div>
+        <div class="b-sec"><h2>结果</h2><span>6 条 · 2.06s</span><span class="more">导出 JSON ›</span></div>
+        <div class="b-res" id="b2-videos"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ B3 · 看懂视频 ══════════════════════ -->
+<div class="frame" data-shot="B3-watch" data-dir="B">
+  <nav class="b-rail">
+    <div class="b-rmark"><svg class="ic" style="width:14px;height:14px"><use href="#i-play"/></svg></div>
+    <div class="b-rbtn on"><svg class="ic"><use href="#i-search"/></svg></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-inbox"/></svg></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-bookmark"/></svg></div>
+    <div class="b-rdiv"></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-chart"/></svg></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-send"/></svg></div>
+    <div class="b-rbtn"><svg class="ic"><use href="#i-shield"/></svg></div>
+    <div class="b-rbtn" style="margin-top:auto"><svg class="ic"><use href="#i-cog"/></svg></div>
+    <div class="b-rfoot">星</div>
+  </nav>
+  <div class="b-main">
+    <div class="b-top">
+      <div class="b-inner">
+        <div class="b-brand">bili<span>·view</span></div>
+        <div class="sp"></div>
+        <span class="b-tchip ver">bili 0.6.0</span>
+        <span class="b-tchip"><i></i>星宝 · Lv6</span>
+        <span class="b-tchip">主人 · 老白</span>
+      </div>
+    </div>
+    <div class="b-body">
+      <div class="b-col">
+        <div style="display:flex;align-items:center;gap:8px;margin:6px 0 10px;font-size:12px;color:#98a2b1">
+          <span>结果</span><span style="color:#d3d9e2">/</span><span style="color:#141a22;font-weight:600">看懂视频</span>
+          <span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:6px;background:#e8f8f1;color:#12996a;font-size:11.5px;font-weight:600">执行成功 4.55s</span>
+        </div>
+        <div class="b-vhead">
+          <div class="cov g3"><span class="name">封面占位</span><span class="dur">24:52</span></div>
+          <div>
+            <h1>折1万次、会坏吗？iPhone Duo 深度评测</h1>
+            <div class="meta">
+              <span>影视飓风</span><span>211.9万 播放</span><span>13.2万 赞</span><span>5.0万 投币</span><span>1.9万 收藏</span>
+            </div>
+            <div style="margin-top:12px;font-size:12.5px;color:#66717f;line-height:1.75">bili video watch BV1xT6zF5EvD --max-chars 2000</div>
+          </div>
+        </div>
+        <div class="b-quote">iPhone Duo 折叠屏 500 次折叠后折痕微小，铰链与电池表现优异，1 万次测试后铰链依旧稳定但转录在软件提示 bug，大屏优势明显，多屏协作优化流畅，影像系统强大，融合 15 年研发创新，展现折叠屏技术努力与生态适配蓝图。</div>
+        <div class="b-sec"><h2>抽帧</h2><span>6 / 9 张 · 覆盖 24:52</span><span class="more">原始 JSON ›</span></div>
+        <div class="b-frames" id="b3-frames"></div>
+        <div class="b-fold"><svg class="ic"><use href="#i-doc"/></svg>字幕全文 · 2000 字<span class="r">展开 ⌄</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ C1 · 首页 ══════════════════════ -->
+<div class="frame" data-shot="C1-home" data-dir="C">
+  <nav class="c-rail">
+    <div class="c-mark"><svg class="ic" style="width:12px;height:12px"><use href="#i-play"/></svg></div>
+    <div class="c-rn on"><svg class="ic"><use href="#i-eye"/></svg><em>看</em></div>
+    <div class="c-rn"><svg class="ic"><use href="#i-send"/></svg><em>发</em></div>
+    <div class="c-rn"><svg class="ic"><use href="#i-shield"/></svg><em>守</em></div>
+    <div class="c-rn"><svg class="ic"><use href="#i-chart"/></svg><em>查</em></div>
+    <div class="c-ra"><svg class="ic" style="width:14px;height:14px;margin:0 auto 4px"><use href="#i-cog"/></svg>设置</div>
+  </nav>
+  <div class="c-main">
+    <div class="c-content">
+      <div class="c-crumb">看 <span style="color:#3f4b5c">/</span> <b>工作台</b></div>
+      <div class="c-ttl">今天想看什么</div>
+      <div class="c-sub"><span>上次停在「看懂视频」，4.55s 出结果</span></div>
+      <div class="c-rule"></div>
+      <div class="c-tabs"><span class="on">视频<em>11</em></span><span>发现<em>7</em></span><span>互动<em>6</em></span><span>账号<em>6</em></span></div>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:672px;border:1px solid rgba(186,214,255,.08);background:radial-gradient(520px 240px at 50% 0%,rgba(251,114,153,.07),transparent 70%)">
+        <div style="font-family:SimSun,serif;font-size:17px;letter-spacing:.1em;color:#c8d5e6">命令在右边，参数不跳页</div>
+        <p style="margin-top:9px;max-width:400px;text-align:center;font-size:12px;line-height:1.95;color:#74869c">选中一条命令后右侧变成它的参数面板，改完直接跑；结果留在左边，切命令也不会丢。</p>
+        <div style="margin-top:16px;display:flex;gap:8px">
+          <span style="height:26px;display:inline-flex;align-items:center;padding:0 10px;border:1px solid rgba(251,114,153,.3);color:#ffb0c6;font-size:11px;background:rgba(251,114,153,.06)">video.watch</span>
+          <span style="height:26px;display:inline-flex;align-items:center;padding:0 10px;border:1px solid rgba(186,214,255,.1);color:#9db0c6;font-size:11px">hot.rank</span>
+          <span style="height:26px;display:inline-flex;align-items:center;padding:0 10px;border:1px solid rgba(186,214,255,.1);color:#9db0c6;font-size:11px">feed.inbox</span>
+        </div>
+      </div>
+    </div>
+    <aside class="c-aside">
+      <div class="c-ah"><b>命令</b><span>未选中</span></div>
+      <div class="c-tip" style="margin-top:0">从左边表里点一条命令，这一栏会变成它的参数面板。</div>
+      <div class="c-dash">
+        <div class="c-kv"><span>bili 版本</span><b>0.6.0</b></div>
+        <div class="c-kv"><span>命令总数</span><b>106</b></div>
+        <div class="c-kv"><span>登录态</span><b style="color:#3ddc97">星宝 · Lv6</b></div>
+        <div class="c-kv"><span>主人</span><b>老白</b></div>
+        <div class="c-kv"><span>后端</span><b>8811 · 在线</b></div>
+      </div>
+      <div class="c-dash">
+        <div class="c-ah" style="margin-bottom:9px"><b style="font-size:12.5px">今天跑过</b><span>3 条</span></div>
+        <div class="c-chap"><b>13:21</b>video.watch · 4.55s</div>
+        <div class="c-chap"><b>13:18</b>hot.rank tech · 2.06s</div>
+        <div class="c-chap" style="border:none"><b>02:14</b>duty round 03 · 成功</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- ══════════════════════ C2 · 分区排行 ══════════════════════ -->
+<div class="frame" data-shot="C2-rank" data-dir="C">
+  <nav class="c-rail">
+    <div class="c-mark"><svg class="ic" style="width:12px;height:12px"><use href="#i-play"/></svg></div>
+    <div class="c-rn on"><svg class="ic"><use href="#i-eye"/></svg><em>看</em></div>
+    <div class="c-rn"><svg class="ic"><use href="#i-send"/></svg><em>发</em></div>
+    <div class="c-rn"><svg class="ic"><use href="#i-shield"/></svg><em>守</em></div>
+    <div class="c-rn"><svg class="ic"><use href="#i-chart"/></svg><em>查</em></div>
+    <div class="c-ra"><svg class="ic" style="width:14px;height:14px;margin:0 auto 4px"><use href="#i-cog"/></svg>设置</div>
+  </nav>
+  <div class="c-main">
+    <div class="c-content">
+      <div class="c-crumb">看 <span style="color:#3f4b5c">/</span> <b>发现</b> <span style="color:#3f4b5c">/</span> 分区排行</div>
+      <div class="c-ttl">科技分区 · 今日热榜</div>
+      <div class="c-sub"><code>bili hot rank --zone tech --limit 6</code><span>2.06s</span><span style="color:#3ddc97">6 条</span></div>
+      <div class="c-rule"></div>
+      <div class="c-tabs"><span class="on">全部<em>6</em></span><span>没看过<em>4</em></span><span>已看<em>2</em></span></div>
+      <div class="c-grid" id="c2-videos"></div>
+    </div>
+    <aside class="c-aside">
+      <div class="c-ah"><b>分区排行</b><span>hot.rank</span></div>
+      <div class="c-fld"><label>分区 ZONE</label><div class="c-in"><span>tech · 科技</span><span style="color:#62748a">▾</span></div></div>
+      <div class="c-fld"><label>条数 LIMIT</label><div class="c-step"><i>−</i><span>6</span><i>＋</i></div></div>
+      <div class="c-row"><span>只看没看过的</span><span class="c-tg"></span></div>
+      <div class="c-row"><span>带封面</span><span class="c-tg"></span></div>
+      <div class="c-row"><span>写操作 dry-run</span><span class="c-tg"></span></div>
+      <div class="c-go"><svg class="ic" style="width:13px;height:13px"><use href="#i-play"/></svg>运行</div>
+      <div class="c-dash">
+        <div class="c-ah" style="margin-bottom:8px"><b style="font-size:12.5px">本次</b><span>刚刚</span></div>
+        <div class="c-kv"><span>耗时</span><b>2.06s</b></div>
+        <div class="c-kv"><span>bili 子进程</span><b>1.71s</b></div>
+        <div class="c-kv"><span>封面代理</span><b>0.35s</b></div>
+        <div class="c-kv"><span>返回体积</span><b>8.4 KB</b></div>
+      </div>
+      <div class="c-tip">同一分区第二次跑会命中封面内存缓存，通常降到 1.7s 左右。</div>
+    </aside>
+  </div>
+</div>
+
+<!-- ══════════════════════ C3 · 看懂视频 ══════════════════════ -->
+<div class="frame" data-shot="C3-watch" data-dir="C">
+  <nav class="c-rail">
+    <div class="c-mark"><svg class="ic" style="width:12px;height:12px"><use href="#i-play"/></svg></div>
+    <div class="c-rn on"><svg class="ic"><use href="#i-eye"/></svg><em>看</em></div>
+    <div class="c-rn"><svg class="ic"><use href="#i-send"/></svg><em>发</em></div>
+    <div class="c-rn"><svg class="ic"><use href="#i-shield"/></svg><em>守</em></div>
+    <div class="c-rn"><svg class="ic"><use href="#i-chart"/></svg><em>查</em></div>
+    <div class="c-ra"><svg class="ic" style="width:14px;height:14px;margin:0 auto 4px"><use href="#i-cog"/></svg>设置</div>
+  </nav>
+  <div class="c-main">
+    <div class="c-content">
+      <div class="c-crumb">看 <span style="color:#3f4b5c">/</span> <b>视频</b> <span style="color:#3f4b5c">/</span> BV1xT6zF5EvD</div>
+      <div class="c-ttl">折1万次、会坏吗？<br />iPhone Duo 深度评测</div>
+      <div class="c-rule"></div>
+      <div class="c-vh">
+        <div class="cov g3"><span class="name">封面占位</span><span class="dur">24:52</span></div>
+        <div>
+          <div class="c-sum" style="margin-top:0">iPhone Duo 折叠屏 500 次折叠后折痕微小，铰链与电池表现优异，1 万次测试后铰链依旧稳定但转录在软件提示 bug，大屏优势明显，多屏协作优化流畅，影像系统强大，融合 15 年研发创新，展现折叠屏技术努力与生态适配蓝图。</div>
+          <div class="c-sub" style="margin-top:12px;gap:14px">
+            <span style="color:#a3b8cf">影视飓风</span><span>211.9万 播放</span><span>13.2万 赞</span><span>5.0万 币</span><span>1.9万 藏</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:22px;margin-bottom:10px">
+        <span style="font-family:SimSun,serif;font-size:14px;letter-spacing:.08em;color:#dae4f0">抽帧总览</span>
+        <span style="font-size:11px;color:#74869c">6 / 9 张 · 每 2 分 40 秒一张</span>
+        <span style="margin-left:auto;font-size:11px;color:#74869c">原始 JSON ›</span>
+      </div>
+      <div class="c-frames" id="c3-frames"></div>
+    </div>
+    <aside class="c-aside">
+      <div class="c-ah"><b>看懂视频</b><span>watch</span></div>
+      <div class="c-fld"><label>视频号 / 链接</label><div class="c-in"><span style="font-family:Consolas,monospace">BV1xT6zF5EvD</span></div></div>
+      <div class="c-fld"><label>正文字数 MAX-CHARS</label><div class="c-step"><i>−</i><span>2000</span><i>＋</i></div></div>
+      <div class="c-row"><span>拉字幕</span><span class="c-tg"></span></div>
+      <div class="c-row"><span>拉热评</span><span class="c-tg"></span></div>
+      <div class="c-row"><span>抽帧</span><span class="c-tg"></span></div>
+      <div class="c-go"><svg class="ic" style="width:13px;height:13px"><use href="#i-play"/></svg>重新运行</div>
+      <div class="c-dash">
+        <div class="c-ah" style="margin-bottom:8px"><b style="font-size:12.5px">字幕 · 章节</b><span>2000 字</span></div>
+        <div class="c-chap"><b>00:00</b>开场 · 这台机器折了一万次</div>
+        <div class="c-chap"><b>01:19</b>折痕对比 · 我们量了三个位置</div>
+        <div class="c-chap"><b>04:05</b>铰链阻尼 · 半开状态还能停住</div>
+        <div class="c-chap"><b>09:36</b>大屏适配 · 分屏与悬停</div>
+        <div class="c-chap"><b>15:07</b>影像 · 折叠后画质没掉</div>
+        <div class="c-chap" style="border:none"><b>23:29</b>结论 · 值不值得买</div>
+      </div>
+      <div class="c-tip">字幕超过 2000 字会截断，需要全文在右栏把 max-chars 调大。</div>
+    </aside>
+  </div>
+</div>
+
+<script>
+  const VIDEOS = [
+    { t: '折1万次、会坏吗？iPhone Duo 深度评测', up: '影视飓风', dur: '24:52', pv: '211.9万', like: '13.2万', coin: '5.0万', fav: '1.9万', dm: '1.9万', date: '2026-10-21' },
+    { t: '电脑总是卡顿掉帧？原来是 ACE 根本没做好虚拟化', up: '宇哥侃数码', dur: '32:06', pv: '82.4万', like: '4.4万', coin: '1.8万', fav: '2257', dm: '852.4', date: '2026-10-21' },
+    { t: '我的所有全自动', up: '背包打游戏', dur: '03:35', pv: '92.4万', like: '8.3万', coin: '189.3', fav: '166.4', dm: '0.35万', date: '2026-10-17' },
+    { t: '【何同学】蓝牙！时代极值？iPhone Duo 首发体验', up: '老师好我叫何同学', dur: '27:44', pv: '48.6万', like: '2.67万', coin: '6838', fav: '2021', dm: '0.28万', date: '2026-10-21' },
+    { t: '荣耀 Robot Phone 上手体验：形态够打，用起来咋样？', up: '极客湾Geekerwan', dur: '06:06', pv: '86.5万', like: '1.5万', coin: '394', fav: '1568', dm: '0.36万', date: '2026-10-20' },
+    { t: 'iPhone Duo 首发评测：苹果的双屏对话框', up: '钟文泽', dur: '26:35', pv: '37.5万', like: '1.6万', coin: '4113', fav: '1931', dm: '0.23万', date: '2026-10-21' }
+  ];
+
+  const GROUPS = [
+    { name: '账号', items: [['user','登录状态',''],['user','我的资料',''],['chart','创作数据',''],['star','当前主人',''],['cog','设置主人',''],['bookmark','我的收藏夹','']] },
+    { name: '收件箱', items: [['inbox','全部新消息','5'],['msg','回复我的',''],['msg','@我的',''],['star','收到的赞',''],['inbox','未读数','']] },
+    { name: '发现', items: [['video','首页推荐',''],['fire','综合热门',''],['fire','分区排行',''],['fire','热搜',''],['star','每周必看',''],['search','搜视频',''],['user','搜用户','']] },
+    { name: '视频', items: [['eye','看懂视频',''],['video','视频信息',''],['doc','字幕全文',''],['grid','AI 总结',''],['grid','单稿弹幕',''],['grid','抽帧总览',''],['msg','热评',''],['user','UP主档案',''],['msg','看评论',''],['send','发评论',''],['send','发弹幕','']] },
+    { name: '互动', items: [['msg','私信列表',''],['send','发私信',''],['star','点赞',''],['bookmark','收藏',''],['coin','投币',''],['coin','一键三连','']] },
+    { name: '刷B站', items: [['shield','值班设置',''],['send','发动态',''],['eye','她看过什么','']] },
+    { name: '系统', items: [['shield','升级自检','']] }
+  ];
+
+  function nav(openGroup, activeItem) {
+    return GROUPS.map((g) => {
+      const open = g.name === openGroup;
+      let h = `<div class="a-grp ${open ? 'open' : 'fold'}"><span>${g.name}</span><em>${g.items.length}</em></div>`;
+      if (open) {
+        h += g.items.map(([ico, label, tail]) =>
+          `<div class="a-it ${label === activeItem ? 'on' : ''}"><svg class="ic" style="width:13px;height:13px"><use href="#i-${ico}"/></svg>${label}${tail ? `<span class="tail">${tail}</span>` : ''}</div>`
+        ).join('');
+      }
+      return h;
+    }).join('');
+  }
+
+  function aVideos() {
+    return VIDEOS.map((v, i) => `
+      <div class="a-vrow">
+        <div class="cov g${i + 1}"><span class="name" style="font-size:9px;letter-spacing:.1em">封面</span><span class="dur">${v.dur}</span></div>
+        <div>
+          <div class="a-vt">${v.t}</div>
+          <div class="a-vs"><span class="up">${v.up}</span><span class="sep">|</span><span>${v.pv} 播放</span><span class="sep">·</span><span>${v.like} 赞</span><span class="sep">·</span><span>${v.coin} 币</span><span class="sep">·</span><span>${v.dm} 弹幕</span></div>
+        </div>
+        <div class="a-vidx">#${i + 1}</div>
+      </div>`).join('');
+  }
+
+  function aLog(showNow) {
+    const rows = [
+      ['13:21', 'bili video watch BV1xT6zF5EvD', '4.55s · 成功', 'ok'],
+      ['13:18', 'bili hot rank --zone tech --limit 6', '2.06s · 6 条', 'ok'],
+      ['11:02', 'bili feed inbox --unread', '1.12s · 5 条', 'ok'],
+      ['10:47', 'bili user me', '0.62s · 失败 auth_expired', ''],
+      ['09:30', 'bili hot search --limit 10', '0.94s · 10 条', '']
+    ];
+    return rows.map(([t, c, m, k]) => `<div class="a-evt ${k}"><div class="et">${t}</div><div class="ec">${c}</div><div class="em">${m}</div></div>`).join('');
+  }
+
+  const FRAMES = [
+    ['1:19', '手比划折痕'], ['4:05', '手机在键盘上'], ['6:50', '白色机身'], ['9:36', '屏幕网格'],
+    ['12:31', '实验室白色'], ['15:07', '手持拍摄'], ['17:52', '合同文件'], ['20:45', '金发特写'],
+    ['23:29', '结论字幕']
+  ];
+
+  function aFrames() {
+    return FRAMES.slice(0, 8).map(([t, c], i) => `
+      <div>
+        <div class="cov g${(i % 6) + 1}" style="width:100%;aspect-ratio:16/9;border-radius:5px">
+          <span class="name" style="font-size:8.5px">帧 ${i + 1}</span>
+          <span class="dur" style="font-size:9px">#${i + 1} ${t}</span>
+        </div>
+        <div style="margin-top:3px;font-size:9.5px;color:#5f6c7d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c}</div>
+      </div>`).join('');
+  }
+
+  function cFrames() {
+    return FRAMES.slice(0, 6).map(([t, c], i) => `
+      <div class="f">
+        <div class="cov g${(i % 6) + 1}"><span class="name" style="font-size:9px">帧 ${i + 1}</span></div>
+        <div class="cap"><b>#${i + 1} ${t}</b><span>${c}</span></div>
+      </div>`).join('');
+  }
+
+  function bFrames() {
+    return FRAMES.slice(0, 6).map(([t, c], i) => `
+      <div class="f">
+        <div class="cov g${(i % 6) + 1}"><span class="name" style="font-size:9px">帧 ${i + 1}</span></div>
+        <div class="cap"><b>#${i + 1}</b><span>${t}</span><span style="margin-left:auto;color:#a2acba">${c}</span></div>
+      </div>`).join('');
+  }
+
+  function bVideos() {
+    return VIDEOS.slice(0, 5).map((v, i) => `
+      <div class="b-row">
+        <div class="cov g${i + 1}"><span class="name">封面占位</span><span class="dur">${v.dur}</span></div>
+        <div>
+          <h3>${v.t}</h3>
+          <div class="up"><b>${v.up}</b> · ${v.date}</div>
+          <div class="nums">
+            <span><svg class="ic"><use href="#i-play"/></svg>${v.pv}</span>
+            <span><svg class="ic"><use href="#i-star"/></svg>${v.like}</span>
+            <span><svg class="ic"><use href="#i-coin"/></svg>${v.coin}</span>
+            <span><svg class="ic"><use href="#i-bookmark"/></svg>${v.fav}</span>
+          </div>
+        </div>
+      </div>`).join('') + '<div class="b-fade"></div>';
+  }
+
+  function cVideos() {
+    return VIDEOS.map((v, i) => `
+      <div class="c-card">
+        <div class="cov g${i + 1}"><span class="name" style="font-size:10px">封面占位</span><span class="dur">${v.dur}</span></div>
+        <div class="no">NO.${String(i + 1).padStart(2, '0')}</div>
+        <h4>${v.t}</h4>
+        <div class="m"><span class="u">${v.up}</span><span>${v.pv} 播放</span><span>${v.like} 赞</span></div>
+      </div>`).join('');
+  }
+
+  document.getElementById('a1-nav').innerHTML = nav('账号', '登录状态');
+  document.getElementById('a2-nav').innerHTML = nav('发现', '分区排行');
+  document.getElementById('a3-nav').innerHTML = nav('视频', '看懂视频');
+  document.getElementById('a1-log').innerHTML = aLog();
+  document.getElementById('a2-log').innerHTML = aLog();
+  document.getElementById('a2-videos').innerHTML = aVideos();
+  document.getElementById('a3-frames').innerHTML = aFrames();
+  document.getElementById('b2-videos').innerHTML = bVideos();
+  document.getElementById('b3-frames').innerHTML = bFrames();
+  document.getElementById('c2-videos').innerHTML = cVideos();
+  document.getElementById('c3-frames').innerHTML = cFrames();
+
+  // 一帧一视口：只留 ?s=xxx 指定的那一帧
+  const keep = new URLSearchParams(location.search).get('s');
+  if (keep) {
+    document.querySelectorAll('.frame').forEach((f) => { if (f.dataset.shot !== keep) f.remove(); });
+  }
+</script>
+</body>
+</html>

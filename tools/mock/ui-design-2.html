@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>bili-cli-view · UI 设计稿（追加方向 D / E）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scrollbar-width: none; }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  body { margin: 0; padding: 0; display: block; background: #000; }
+  .frame { width: 1440px; height: 900px; position: relative; overflow: hidden; }
+
+  /* 封面占位 */
+  .cov { position: relative; overflow: hidden; background: #14181f; }
+  .cov::before { content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(138deg, rgba(255,255,255,.05) 0 1px, transparent 1px 6px); }
+  .cov::after { content: ''; position: absolute; inset: 0;
+    background: linear-gradient(118deg, transparent 38%, rgba(255,255,255,.09) 52%, transparent 62%),
+      radial-gradient(120% 90% at 26% 16%, rgba(255,255,255,.2), transparent 58%); }
+  .g1 { background: linear-gradient(135deg, #33222c, #6b3a46 46%, #1a2029); }
+  .g2 { background: linear-gradient(135deg, #1d2a1c, #3f5c2e 48%, #131c15); }
+  .g3 { background: linear-gradient(135deg, #102436, #1d4f6e 52%, #0c1a25); }
+  .g4 { background: linear-gradient(135deg, #2f2415, #6d4a1c 50%, #1b1610); }
+  .g5 { background: linear-gradient(135deg, #251b30, #4b2f6e 54%, #151020); }
+  .g6 { background: linear-gradient(135deg, #112a2b, #1f5d57 50%, #0c1c1d); }
+  .nm { position: absolute; inset: 0; display: grid; place-items: center; z-index: 2;
+    color: rgba(255,255,255,.4); font-size: 10px; letter-spacing: .16em; }
+  .dur { position: absolute; right: 5px; bottom: 5px; z-index: 3; padding: 0 4px; border-radius: 3px;
+    background: rgba(0,0,0,.72); color: #f0f4fa; font-size: 10px; line-height: 15px;
+    font-variant-numeric: tabular-nums; }
+
+  /* ══════════════════════════════════════════════════════════
+     D —— TERMINAL：全等宽、字符框、单色荧光、结果用表格
+     主张：回到 CLI 本色。没有卡片、没有圆角、没有渐变；
+           命令索引是文本流，结果是一张对齐的表
+     ══════════════════════════════════════════════════════════ */
+  [data-dir="D"] {
+    --bg: #0b0e0b; --panel: #090b09; --line: #1e261e; --line2: #2a352a;
+    --ink: #c9d5c9; --ink2: #8fa08f; --ink3: #63725f; --bright: #eef6ee;
+    --green: #7ee787; --amber: #e3b341; --pink: #ff7b9c; --cyan: #6cb6ff;
+    --mono: Consolas, 'Courier New', monospace;
+    background: var(--bg); color: var(--ink);
+    font-family: var(--mono); font-size: 12px; line-height: 1.55;
+    display: flex; flex-direction: column;
+  }
+  .d-top { height: 42px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 18px;
+    border-bottom: 1px solid var(--line); background: #08090a; }
+  .d-mark { color: var(--green); font-size: 15px; letter-spacing: -.1em; }
+  .d-logo { color: var(--bright); font-weight: 700; letter-spacing: .05em; }
+  .d-sep { color: #2c352c; }
+  .d-dim { color: var(--ink3); }
+  .d-sp { flex: 1; }
+  .d-who { color: var(--ink2); }
+  .d-who b { color: var(--green); font-weight: 400; }
+  .d-act { color: var(--ink2); border: 1px solid var(--line2); padding: 2px 8px; margin-left: 4px; }
+  .d-act.on { background: var(--green); color: #0b0e0b; border-color: var(--green); font-weight: 700; }
+
+  .d-tabs { height: 36px; flex: none; display: flex; align-items: stretch; gap: 1px;
+    border-bottom: 1px solid var(--line); padding: 0 18px; background: #0a0d0a; }
+  .d-tab { display: flex; align-items: center; padding: 0 15px; color: var(--ink3); font-size: 11.5px; }
+  .d-tab i { font-style: normal; color: #3d4a3d; margin-right: 7px; }
+  .d-tab.on { background: var(--green); color: #0b0e0b; font-weight: 700; }
+  .d-tab.on i { color: #2b5430; }
+
+  .d-idx { padding: 11px 20px 13px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .d-row { display: flex; gap: 12px; padding: 2.5px 0; }
+  .d-row .k { color: var(--green); width: 86px; flex: none; opacity: .8; font-size: 11.5px; }
+  .d-row .v { color: #93a293; font-size: 11.5px; letter-spacing: .01em; }
+  .d-row .v b { color: var(--bright); font-weight: 400; }
+  .d-row .v span { color: #4a564a; }
+
+  .d-crumb { height: 34px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 20px;
+    border-bottom: 1px solid var(--line); background: var(--panel); font-size: 11.5px; color: var(--ink3); }
+  .d-crumb b { color: var(--green); font-weight: 400; }
+
+  .d-work { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .d-panel { position: relative; border: 1px solid var(--line2); margin: 0; }
+  .d-panel > .t { position: absolute; top: -8px; left: 12px; padding: 0 7px; background: var(--bg);
+    font-size: 10px; letter-spacing: .14em; color: var(--green); }
+
+  .d-cmd { padding: 15px 18px 14px; }
+  .d-cmd .line { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+  .d-cmd .ps { color: var(--green); }
+  .d-cmd .c0 { color: var(--bright); }
+  .d-cmd .f { color: var(--ink2); }
+  .d-cmd .v { color: var(--amber); }
+  .d-cmd .args { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 7px; }
+  .d-arg { border: 1px solid var(--line2); padding: 2px 8px; font-size: 11px; color: var(--ink2); }
+  .d-arg b { color: var(--cyan); font-weight: 400; }
+  .d-arg.on { border-color: rgba(126,231,135,.4); color: var(--green); }
+  .d-go { margin-left: auto; border: 1px solid var(--green); color: var(--green); padding: 3px 12px;
+    font-size: 11.5px; font-weight: 700; }
+  .d-go.filled { background: var(--green); color: #0b0e0b; }
+
+  .d-resbar { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 11px;
+    color: var(--ink3); border-bottom: 1px solid var(--line); }
+  .d-ok { color: var(--green); }
+  .d-ok::before { content: '[ok] '; }
+  .d-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .d-tbl th { text-align: left; padding: 7px 10px; font-size: 10px; letter-spacing: .1em; font-weight: 400;
+    color: #56654f; border-bottom: 1px solid var(--line2); }
+  .d-tbl td { padding: 7px 10px; border-bottom: 1px solid rgba(30,38,30,.6); color: var(--ink2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; }
+  .d-tbl td.no { color: var(--green); }
+  .d-tbl td.tt { color: var(--bright); }
+  .d-tbl td.u { color: #9fb0c4; }
+  .d-tbl td.n { color: var(--amber); text-align: right; }
+
+  .d-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; }
+  .d-empty .row { display: flex; gap: 16px; align-items: flex-start; }
+  .d-empty .box { border: 1px solid var(--line2); padding: 16px 20px 14px; background: var(--panel); position: relative; }
+  .d-empty .box > .t { position: absolute; top: -8px; left: 12px; padding: 0 7px; background: var(--bg);
+    font-size: 10px; letter-spacing: .14em; color: var(--green); }
+  .d-empty .box .ln { font-size: 12px; color: var(--ink2); padding: 3px 0; white-space: nowrap; }
+  .d-empty .box .ln b { color: var(--green); font-weight: 400; }
+  .d-empty .box .ln i { font-style: normal; color: #4a564a; }
+  .d-hist { display: grid; grid-template-columns: 46px minmax(0,1fr) 52px 30px; gap: 10px;
+    padding: 2.5px 0; font-size: 11.5px; color: #93a293; }
+  .d-hist .tm { color: #56654f; }
+  .d-hist .st { color: var(--green); }
+  .d-hist .tm2 { text-align: right; color: var(--ink3); }
+  .d-empty .hint { margin-top: 16px; font-size: 11px; color: var(--ink3); }
+  .d-kv { display: grid; grid-template-columns: 84px minmax(0,1fr); gap: 12px; padding: 2.5px 0; font-size: 11.5px; }
+  .d-kv span { color: #56654f; }
+  .d-kv b { color: var(--bright); font-weight: 400; }
+
+  .d-prompt { flex: none; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 20px;
+    border-top: 1px solid var(--line); background: #08090a; }
+  .d-prompt .ps { color: var(--green); }
+  .d-prompt .cur { width: 7px; height: 14px; background: var(--green); }
+  .d-prompt .ph { color: var(--ink3); font-size: 11.5px; }
+  .d-prompt .kbd { margin-left: auto; color: #4a564a; font-size: 10.5px; border: 1px solid var(--line2);
+    padding: 2px 6px; }
+
+  .d-status { flex: none; height: 26px; display: flex; align-items: center; gap: 14px; padding: 0 18px;
+    border-top: 1px solid var(--line); background: #08090a; font-size: 10.5px; color: var(--ink3); }
+  .d-status .g { color: var(--green); }
+  .d-status .r { color: var(--pink); }
+  .d-status .right { margin-left: auto; display: flex; gap: 14px; }
+
+  /* D 视频页 */
+  .d-vh { padding: 12px 20px 0; }
+  .d-vh .bv { color: var(--green); font-size: 11.5px; }
+  .d-vh h2 { color: var(--bright); font-size: 15px; font-weight: 400; margin-top: 4px; line-height: 1.5; }
+  .d-vh .meta { margin-top: 6px; display: flex; gap: 14px; font-size: 11px; color: var(--ink3); }
+  .d-vh .meta b { color: #9fb0c4; font-weight: 400; }
+  .d-quote { margin: 10px 20px 0; padding: 8px 12px; border-left: 2px solid var(--green);
+    background: rgba(126,231,135,.045); color: #a9baa9; font-size: 11.5px; line-height: 1.75; }
+  .d-quote b { color: var(--green); font-weight: 400; }
+  .d-fr { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 10px 20px 0; }
+  .d-fr .f .cov { width: 100%; aspect-ratio: 16/9; }
+  .d-fr .f .cap { display: flex; gap: 5px; margin-top: 3px; font-size: 10px; color: var(--ink3); }
+  .d-fr .f .cap b { color: var(--green); font-weight: 400; }
+  .d-two { display: grid; grid-template-columns: 1.25fr 1fr; gap: 0; margin-top: 12px;
+    border-top: 1px solid var(--line); flex: 1; min-height: 0; }
+  .d-two > div { padding: 10px 20px 0; }
+  .d-two > div + div { border-left: 1px solid var(--line); }
+  .d-sub { display: grid; grid-template-columns: 44px 1fr; gap: 9px; padding: 7px 0; font-size: 11.5px;
+    line-height: 1.75; border-bottom: 1px dashed rgba(255,255,255,.04); }
+  .d-sub b { color: #56654f; font-weight: 400; }
+  .d-sub span { color: #a9baa9; }
+  .d-cm { padding: 9px 0; border-bottom: 1px dashed rgba(255,255,255,.05); font-size: 11.5px; line-height: 1.75; }
+  .d-cm .who { color: var(--cyan); }
+  .d-cm .like { color: var(--pink); }
+  .d-cm .txt { color: #a9baa9; }
+
+  /* ══════════════════════════════════════════════════════════
+     E —— BRUTALIST POP：粗黑边 + 硬阴影 + 撞色 + 贴纸
+     主张：明色但不"性冷淡"。视觉靠粗边和硬投影分层；
+           横向导航替代侧栏；编号放大成海报数字
+     ══════════════════════════════════════════════════════════ */
+  [data-dir="E"] {
+    --ink: #14100f; --bg: #fff7f0; --paper: #ffffff;
+    --pink: #ff5c8a; --mint: #00c2b2; --yellow: #ffd23f; --blue: #4d7cff;
+    background-color: var(--bg);
+    background-image: radial-gradient(rgba(20,16,15,.075) 1px, transparent 1px);
+    background-size: 18px 18px;
+    color: var(--ink); font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    font-size: 14px; line-height: 1.6; display: flex; flex-direction: column;
+  }
+  .e-nav { height: 66px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 32px;
+    background: var(--paper); border-bottom: 2px solid var(--ink); }
+  .e-logo { width: 34px; height: 34px; border-radius: 10px; background: var(--ink); color: #fff;
+    display: grid; place-items: center; }
+  .e-name { font-weight: 800; font-size: 17px; letter-spacing: -.01em; }
+  .e-name span { color: #a89e98; font-weight: 600; }
+  .e-menu { display: flex; gap: 6px; margin-left: 10px; }
+  .e-mi { padding: 7px 15px; border-radius: 10px; font-size: 13.5px; font-weight: 700; color: #5d534e;
+    border: 2px solid transparent; }
+  .e-mi.on { background: var(--yellow); border-color: var(--ink); box-shadow: 2px 2px 0 var(--ink); color: var(--ink); }
+  .e-sp { flex: 1; }
+  .e-ver { font: 11.5px/1 Consolas, monospace; color: #8b8079; border: 2px solid #e6ddd6;
+    border-radius: 7px; padding: 5px 8px; }
+  .e-ava { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--ink); background: var(--pink);
+    display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; }
+  .e-ibtn { width: 34px; height: 34px; border-radius: 9px; border: 2px solid var(--ink); background: #fff;
+    display: grid; place-items: center; box-shadow: 2px 2px 0 var(--ink); }
+
+  .e-body { flex: 1; min-height: 0; padding: 24px 32px 0; display: flex; flex-direction: column; }
+  .e-banner { position: relative; flex: none; height: 148px; border: 2px solid var(--ink); border-radius: 18px;
+    background: var(--pink); box-shadow: 6px 6px 0 var(--ink); padding: 22px 28px;
+    display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+  .e-banner h1 { font-size: 31px; font-weight: 800; letter-spacing: -.025em; color: #fff; line-height: 1.22; }
+  .e-banner p { margin-top: 7px; color: #ffe0e9; font-size: 13.5px; font-weight: 500; }
+  .e-bignum { position: absolute; right: 26px; top: 50%; transform: translateY(-50%) rotate(-7deg);
+    font-size: 78px; font-weight: 800; line-height: 1; color: var(--ink); letter-spacing: -.05em;
+    text-shadow: 4px 4px 0 rgba(255,255,255,.45); }
+  .e-bignum em { display: block; font-size: 11px; font-style: normal; letter-spacing: .2em;
+    font-weight: 700; text-align: center; text-shadow: none; margin-top: 3px; }
+
+  .e-sec { display: flex; align-items: center; gap: 9px; margin: 22px 0 11px; }
+  .e-sec h2 { font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+  .e-sec .badge { background: var(--ink); color: #fff; font-size: 10.5px; font-weight: 700;
+    padding: 3px 8px; border-radius: 6px; letter-spacing: .04em; }
+  .e-sec .more { margin-left: auto; font-size: 12.5px; font-weight: 700; color: var(--pink); }
+
+  .e-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .e-card { background: var(--paper); border: 2px solid var(--ink); border-radius: 16px;
+    box-shadow: 4px 4px 0 var(--ink); overflow: hidden; }
+  .e-tile { padding: 16px 17px; }
+  .e-tile .ti { width: 34px; height: 34px; border-radius: 10px; border: 2px solid var(--ink);
+    display: grid; place-items: center; margin-bottom: 9px; background: #fff; }
+  .e-tile b { display: block; font-size: 15.5px; font-weight: 800; letter-spacing: -.01em; }
+  .e-tile p { font-size: 12px; color: #6b615b; margin-top: 3px; line-height: 1.5; }
+  .e-tile .cmd { margin-top: 9px; display: inline-block; font: 11px/1 Consolas, monospace;
+    background: var(--ink); color: #fff; padding: 4px 7px; border-radius: 5px; }
+  .e-y { background: var(--yellow); }
+  .e-m { background: var(--mint); }
+  .e-w { background: var(--paper); }
+
+  .e-cmdbar { display: flex; align-items: center; gap: 0; border: 2px solid var(--ink); border-radius: 14px;
+    background: #fff; box-shadow: 4px 4px 0 var(--ink); height: 54px; padding: 0 6px 0 16px; flex: none; }
+  .e-cmdbar .ps { font: 700 16px/1 Consolas, monospace; color: var(--pink); margin-right: 9px; }
+  .e-cmdbar .txt { font: 13.5px/1 Consolas, monospace; color: var(--ink); flex: 1; }
+  .e-cmdbar .txt i { font-style: normal; color: #b3a9a3; }
+  .e-cmdbar .go { height: 40px; padding: 0 20px; display: flex; align-items: center; gap: 7px;
+    background: var(--ink); color: #fff; border-radius: 9px; font-weight: 800; font-size: 13.5px; }
+
+  .e-chips { display: flex; gap: 9px; margin-top: 14px; flex: none; }
+  .e-chip { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px;
+    border: 2px solid var(--ink); border-radius: 9px; background: #fff; font-size: 12.5px; font-weight: 700;
+    box-shadow: 2px 2px 0 var(--ink); }
+  .e-chip em { font-style: normal; color: #8b8079; font-weight: 600; }
+  .e-chip.on { background: var(--yellow); }
+  .e-chip.p { background: var(--pink); color: #fff; }
+  .e-chip.p em { color: #ffdde6; }
+
+  .e-res { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+  .e-row { display: grid; grid-template-columns: 218px minmax(0,1fr); }
+  .e-row .cov { width: 218px; height: 123px; border-right: 2px solid var(--ink); }
+  .e-row .body { padding: 12px 14px; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+  .e-row .no { font-size: 11px; font-weight: 800; color: var(--pink); letter-spacing: .1em; }
+  .e-row h3 { font-size: 14px; font-weight: 800; line-height: 1.45; margin-top: 3px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .e-row .m { margin-top: 8px; display: flex; align-items: center; gap: 12px; font-size: 11.5px;
+    color: #6b615b; font-weight: 600; padding-top: 6px; }
+  .e-row .m b { color: var(--ink); }
+
+  .e-vh { display: grid; grid-template-columns: 330px minmax(0,1fr); gap: 22px; align-items: flex-start; }
+  .e-vh .cov { width: 330px; height: 186px; border: 2px solid var(--ink); border-radius: 16px;
+    box-shadow: 5px 5px 0 var(--ink); }
+  .e-vh h1 { font-size: 29px; font-weight: 800; line-height: 1.3; letter-spacing: -.025em; }
+  .e-vh .tags { margin-top: 11px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .e-vh .tags span { border: 2px solid var(--ink); border-radius: 8px; padding: 3px 9px; font-size: 12px;
+    font-weight: 700; background: #fff; }
+  .e-vh .tags .c1 { background: var(--mint); }
+  .e-vh .tags .c2 { background: var(--yellow); }
+  .e-quote { margin-top: 20px; padding: 15px 18px; background: var(--yellow); border: 2px solid var(--ink);
+    border-radius: 14px; box-shadow: 4px 4px 0 var(--ink); font-size: 13.5px; line-height: 1.75;
+    color: #2b2521; font-weight: 500; }
+  .e-fr { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .e-fr .f { border: 2px solid var(--ink); border-radius: 10px; overflow: hidden; background: #fff;
+    box-shadow: 2px 2px 0 var(--ink); }
+  .e-fr .f .cov { width: 100%; aspect-ratio: 16/10; }
+  .e-fr .f .cap { display: flex; align-items: center; gap: 5px; padding: 5px 7px; font-size: 10.5px;
+    font-weight: 700; color: #5d534e; border-top: 2px solid var(--ink); }
+  .e-fr .f .cap b { color: var(--pink); }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-play" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.6 9.4 15 12l-4.4 2.6z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+  <symbol id="i-fire" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3.5c3 3.4 1.4 5.6 3.2 7.4 1 .9 2 1.3 2 3.3a5.2 5.2 0 0 1-10.4 0c0-2.4 1.6-3.4 2.4-5.2"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 13.5 5.6 5h12.8L21 13.5V19H3z"/><path d="M3 13.5h5l1 2h6l1-2h5"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3.5 19 6v6c0 4-3 7-7 8.5-4-1.5-7-4.5-7-8.5V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-cog" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6 6l1.6 1.6M16.4 16.4 18 18M18 6l-1.6 1.6M7.6 16.4 6 18"/></symbol>
+</svg>
+
+<!-- ══════════════════ D1 · 首页（终端） ══════════════════ -->
+<div class="frame" data-shot="D1-home" data-dir="D">
+  <div class="d-top">
+    <span class="d-mark">▚</span><span class="d-logo">bili.view</span>
+    <span class="d-dim">0.6.0</span><span class="d-sep">│</span>
+    <span class="d-who">星宝 <b>Lv6</b></span><span class="d-sep">│</span>
+    <span class="d-who">主人:老白</span>
+    <span class="d-sp"></span>
+    <span class="d-dim">8811 online</span>
+    <span class="d-act">设置</span><span class="d-act">扫码</span><span class="d-act">刷新</span>
+  </div>
+  <div class="d-tabs">
+    <span class="d-tab on"><i>1</i>看</span>
+    <span class="d-tab"><i>2</i>发</span>
+    <span class="d-tab"><i>3</i>守</span>
+    <span class="d-tab"><i>4</i>查</span>
+    <span class="d-sp"></span>
+    <span class="d-tab" style="color:#4a564a">schema: 14 groups · 106 commands · cached 4:12</span>
+  </div>
+  <div class="d-idx">
+    <div class="d-row"><span class="k">account/</span><span class="v"><b>登录状态</b> <span>·</span> 我的资料 <span>·</span> 创作数据 <span>·</span> 当前主人 <span>·</span> 设置主人 <span>·</span> 收藏夹</span></div>
+    <div class="d-row"><span class="k">feed/</span><span class="v">全部新消息 <span>·</span> 回复我的 <span>·</span> @我的 <span>·</span> 收到的赞 <span>·</span> 未读数</span></div>
+    <div class="d-row"><span class="k">find/</span><span class="v">首页推荐 <span>·</span> 综合热门 <span>·</span> 分区排行 <span>·</span> 热搜 <span>·</span> 每周必看 <span>·</span> 搜视频 <span>·</span> 搜用户</span></div>
+    <div class="d-row"><span class="k">video/</span><span class="v">看懂视频 <span>·</span> 视频信息 <span>·</span> 字幕全文 <span>·</span> AI 总结 <span>·</span> 单稿弹幕 <span>·</span> 抽帧总览 <span>·</span> 热评 <span>·</span> UP主档案 <span>·</span> 看评论 <span>·</span> 发评论 <span>·</span> 发弹幕</span></div>
+    <div class="d-row"><span class="k">social/</span><span class="v">私信列表 <span>·</span> 发私信 <span>·</span> 点赞 <span>·</span> 收藏 <span>·</span> 投币 <span>·</span> 一键三连</span></div>
+    <div class="d-row"><span class="k">duty/</span><span class="v">值班设置 <span>·</span> 发动态 <span>·</span> 她看过什么</span></div>
+    <div class="d-row"><span class="k">system/</span><span class="v">升级自检</span></div>
+  </div>
+  <div class="d-work">
+    <div class="d-empty">
+      <div class="row">
+        <div class="box" style="width:402px"><span class="t">QUICKSTART</span>
+          <div class="ln"><b>$</b> bili video watch BV1xT6zF5EvD</div>
+          <div class="ln"><b>$</b> bili hot rank --zone tech --limit 6</div>
+          <div class="ln"><b>$</b> bili feed inbox --unread</div>
+          <div class="ln"><b>$</b> bili duty run --now <i># 立刻跑一轮值班</i></div>
+        </div>
+        <div class="box" style="width:486px"><span class="t">HISTORY · 最近 5 条</span>
+          <div class="d-hist"><span class="tm">13:21</span><span>video.watch BV1xT6zF5EvD</span><span class="tm2">4.55s</span><span class="st">ok</span></div>
+          <div class="d-hist"><span class="tm">13:18</span><span>hot.rank --zone tech --limit 6</span><span class="tm2">2.06s</span><span class="st">ok</span></div>
+          <div class="d-hist"><span class="tm">13:02</span><span>feed.inbox --unread</span><span class="tm2">1.12s</span><span class="st">ok</span></div>
+          <div class="d-hist"><span class="tm">10:47</span><span>user.me</span><span class="tm2">0.62s</span><span style="color:#ff7b9c">err</span></div>
+          <div class="d-hist" style="border:none"><span class="tm">09:30</span><span>hot.search --limit 10</span><span class="tm2">0.94s</span><span class="st">ok</span></div>
+        </div>
+      </div>
+      <div class="hint">写操作默认带 --dry-run，不会真的发出去 · Ctrl K 搜索 106 条</div>
+    </div>
+  </div>
+  <div class="d-prompt">
+    <span class="ps">$</span><span class="cur"></span>
+    <span class="ph">输入命令名或描述…</span>
+    <span class="kbd">Ctrl K</span>
+  </div>
+  <div class="d-status">
+    <span class="g">●</span><span>已登录 星宝</span>
+    <span>·</span><span>凭证 %APPDATA%\bili-cli</span>
+    <span class="right"><span>bili 0.6.0</span><span>8811</span><span>UTF-8</span></span>
+  </div>
+</div>
+
+<!-- ══════════════════ D2 · 分区排行（终端） ══════════════════ -->
+<div class="frame" data-shot="D2-rank" data-dir="D">
+  <div class="d-top">
+    <span class="d-mark">▚</span><span class="d-logo">bili.view</span>
+    <span class="d-dim">0.6.0</span><span class="d-sep">│</span>
+    <span class="d-who">星宝 <b>Lv6</b></span><span class="d-sep">│</span>
+    <span class="d-who">主人:老白</span>
+    <span class="d-sp"></span>
+    <span class="d-dim">8811 online</span>
+    <span class="d-act">设置</span><span class="d-act">扫码</span><span class="d-act">刷新</span>
+  </div>
+  <div class="d-tabs">
+    <span class="d-tab on"><i>1</i>看</span>
+    <span class="d-tab"><i>2</i>发</span>
+    <span class="d-tab"><i>3</i>守</span>
+    <span class="d-tab"><i>4</i>查</span>
+    <span class="d-sp"></span>
+    <span class="d-tab" style="color:#4a564a">schema: 14 groups · 106 commands · cached 4:12</span>
+  </div>
+  <div class="d-crumb">
+    <span class="d-dim">find/</span><b>分区排行</b><span class="d-dim">▸ hot.rank</span>
+    <span class="d-sp"></span>
+    <span class="d-dim">1 / 106</span>
+  </div>
+  <div class="d-cmd d-panel">
+    <span class="t">COMMAND</span>
+    <div class="line">
+      <span class="ps">$</span>
+      <span class="c0">bili</span>
+      <span class="f">hot rank</span>
+      <span class="f">--zone</span><span class="v">tech</span>
+      <span class="f">--limit</span><span class="v">6</span>
+      <span class="f">--unseen</span>
+      <span class="d-go filled" style="margin-left:auto">运行 ⏎</span>
+    </div>
+    <div class="args">
+      <span class="d-arg">zone <b>= tech</b></span>
+      <span class="d-arg">limit <b>= 6</b></span>
+      <span class="d-arg on">unseen <b>= on</b></span>
+      <span class="d-arg">dry-run <b>= auto</b></span>
+      <span class="d-arg" style="border-color:rgba(227,179,65,.35);color:#e3b341">封面代理 /api/cover</span>
+    </div>
+  </div>
+  <div class="d-resbar">
+    <span class="d-ok">执行成功</span>
+    <span>13:18:42</span>
+    <span class="d-dim">·</span>
+    <span>6 条</span>
+    <span class="d-dim">·</span>
+    <span>2.06s</span>
+    <span style="margin-left:auto" class="d-dim">↑↓ 选择 · ⏎ 打开 · j/k 滚动</span>
+  </div>
+  <div class="d-work" style="min-height:0">
+    <table class="d-tbl">
+      <colgroup>
+        <col style="width:52px" /><col style="width:auto" /><col style="width:190px" />
+        <col style="width:112px" /><col style="width:88px" /><col style="width:104px" />
+      </colgroup>
+      <tr><th>#</th><th>TITLE</th><th>UP</th><th>PLAY</th><th>DUR</th><th>LIKE</th></tr>
+      <tr><td class="no">01</td><td class="tt">折1万次、会坏吗？iPhone Duo 深度评测</td><td class="u">影视飓风</td><td class="n">2,119,402</td><td>24:52</td><td class="n">132,110</td></tr>
+      <tr><td class="no">02</td><td class="tt">电脑总是卡顿掉帧？原来是 ACE 根本没做好虚拟化</td><td class="u">宇哥侃数码</td><td class="n">824,006</td><td>32:06</td><td class="n">44,120</td></tr>
+      <tr><td class="no">03</td><td class="tt">我的所有全自动</td><td class="u">背包打游戏</td><td class="n">924,118</td><td>03:35</td><td class="n">83,004</td></tr>
+      <tr><td class="no">04</td><td class="tt">【何同学】蓝牙！时代极值？iPhone Duo 首发体验</td><td class="u">老师好我叫何同学</td><td class="n">486,027</td><td>27:44</td><td class="n">26,731</td></tr>
+      <tr><td class="no">05</td><td class="tt">荣耀 Robot Phone 上手体验：形态够打，用起来咋样？</td><td class="u">极客湾Geekerwan</td><td class="n">865,002</td><td>06:06</td><td class="n">15,023</td></tr>
+      <tr><td class="no">06</td><td class="tt">iPhone Duo 首发评测：苹果的双屏对话框</td><td class="u">钟文泽</td><td class="n">375,118</td><td>26:35</td><td class="n">16,004</td></tr>
+    </table>
+    <div style="padding:9px 20px;font-size:10.5px;color:#4a564a">-- 6 rows · 8.4 KB · cover 6/6 cached --</div>
+    <div class="d-panel" style="margin:6px 20px 0;padding:15px 16px 12px">
+      <span class="t">INSPECT · ROW 01</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 30px">
+        <div>
+          <div class="d-kv"><span>bvid</span><b>BV181Hh6bE27</b></div>
+          <div class="d-kv"><span>title</span><b>折1万次、会坏吗？iPhone Duo 深度评测</b></div>
+          <div class="d-kv"><span>owner</span><b>影视飓风 · mid 946974</b></div>
+        </div>
+        <div>
+          <div class="d-kv"><span>stat.view</span><b>2,119,402</b></div>
+          <div class="d-kv"><span>stat.like</span><b>132,110</b></div>
+          <div class="d-kv"><span>duration</span><b>1492s · 24:52</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="d-status">
+    <span class="g">●</span><span>hot.rank 2.06s</span>
+    <span>·</span><span>json 8.4 KB</span>
+    <span class="right"><span>bili 0.6.0</span><span>8811</span><span>UTF-8</span></span>
+  </div>
+</div>
+
+<!-- ══════════════════ D3 · 看懂视频（终端） ══════════════════ -->
+<div class="frame" data-shot="D3-watch" data-dir="D">
+  <div class="d-top">
+    <span class="d-mark">▚</span><span class="d-logo">bili.view</span>
+    <span class="d-dim">0.6.0</span><span class="d-sep">│</span>
+    <span class="d-who">星宝 <b>Lv6</b></span><span class="d-sep">│</span>
+    <span class="d-who">主人:老白</span>
+    <span class="d-sp"></span>
+    <span class="d-dim">8811 online</span>
+    <span class="d-act">设置</span><span class="d-act">扫码</span><span class="d-act">刷新</span>
+  </div>
+  <div class="d-tabs">
+    <span class="d-tab on"><i>1</i>看</span>
+    <span class="d-tab"><i>2</i>发</span>
+    <span class="d-tab"><i>3</i>守</span>
+    <span class="d-tab"><i>4</i>查</span>
+    <span class="d-sp"></span>
+    <span class="d-tab" style="color:#4a564a">schema: 14 groups · 106 commands · cached 4:12</span>
+  </div>
+  <div class="d-crumb">
+    <span class="d-dim">video/</span><b>看懂视频</b><span class="d-dim">▸ video.watch</span>
+    <span class="d-sp"></span>
+    <span class="d-dim">BV1xT6zF5EvD</span>
+  </div>
+  <div class="d-cmd d-panel" style="flex:none">
+    <span class="t">COMMAND</span>
+    <div class="line">
+      <span class="ps">$</span>
+      <span class="c0">bili</span><span class="f">video watch</span>
+      <span class="v">BV1xT6zF5EvD</span>
+      <span class="f">--max-chars</span><span class="v">2000</span>
+      <span class="d-go" style="margin-left:auto">重跑 ⏎</span>
+    </div>
+  </div>
+  <div class="d-vh">
+    <div class="bv">BV1xT6zF5EvD · 4.55s</div>
+    <h2>折1万次、会坏吗？iPhone Duo 深度评测</h2>
+    <div class="meta"><b>影视飓风</b><span>2,119,402 播放</span><span>132,110 赞</span><span>5.0万 币</span><span>1.9万 藏</span><span>24:52</span></div>
+  </div>
+  <div class="d-quote"><b>AI 摘要 ▸</b> iPhone Duo 折叠屏 500 次折叠后折痕微小，铰链与电池表现优异，1 万次测试后铰链依旧稳定但转录在软件提示 bug，大屏优势明显，多屏协作优化流畅，影像系统强大，融合 15 年研发创新。</div>
+  <div class="d-fr" id="d3-fr"></div>
+  <div class="d-two">
+    <div>
+      <div style="font-size:10px;letter-spacing:.14em;color:#56654f;margin-bottom:6px">SUBTITLES · 前 4 段 / 2000 字</div>
+      <div class="d-sub"><b>00:00</b><span>大家好，我是影视飓风的 Tim，今天我们来聊聊这台折叠屏。</span></div>
+      <div class="d-sub"><b>00:18</b><span>我们把这一台机器连续折了一万次，然后再来看它的折痕。</span></div>
+      <div class="d-sub"><b>01:19</b><span>左边是全新机，右边是折了一万次之后的，中间这条线的差异其实很小。</span></div>
+      <div class="d-sub"><b>04:05</b><span>铰链的阻尼感保持得不错，一万次之后依然能停在半开状态。</span></div>
+      <div class="d-sub"><b>09:36</b><span>大屏适配这块，分屏和悬停的模式已经跟平板很接近了。</span></div>
+      <div class="d-sub"><b>12:31</b><span>接下来是这次最花时间的部分，我们在实验室做了三轮跌落测试。</span></div>
+    </div>
+    <div>
+      <div style="font-size:10px;letter-spacing:.14em;color:#56654f;margin-bottom:6px">TOP COMMENTS · 5 条</div>
+      <div class="d-cm"><span class="who">@阿澈</span> <span class="like">▲ 1.2万</span><div class="txt">"折一万次"这四个字看到就觉得钱包在抖</div></div>
+      <div class="d-cm"><span class="who">@键盘侠本侠</span> <span class="like">▲ 8431</span><div class="txt">测到 500 次就没点耐心了吧，一万次真顶</div></div>
+      <div class="d-cm"><span class="who">@沉默的螺旋</span> <span class="like">▲ 3204</span><div class="txt">铰链能停住才是关键，之前那些一放就塌</div></div>
+      <div class="d-cm" style="border:none"><span class="who">@早八人</span> <span class="like">▲ 1187</span><div class="txt">看完只想问：修一次多少钱</div></div>
+    </div>
+  </div>
+  <div class="d-status">
+    <span class="g">●</span><span>video.watch 4.55s</span>
+    <span>·</span><span>json 32.6 KB</span>
+    <span class="right"><span>bili 0.6.0</span><span>8811</span><span>UTF-8</span></span>
+  </div>
+</div>
+
+<!-- ══════════════════ E1 · 首页（粗野主义） ══════════════════ -->
+<div class="frame" data-shot="E1-home" data-dir="E">
+  <div class="e-nav">
+    <div class="e-logo"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M7 4.5 20 12 7 19.5z" fill="#fff"/></svg></div>
+    <div class="e-name">bili<span>·view</span></div>
+    <div class="e-menu">
+      <span class="e-mi on">看懂</span>
+      <span class="e-mi">发现</span>
+      <span class="e-mi">互动</span>
+      <span class="e-mi">值班</span>
+    </div>
+    <div class="e-sp"></div>
+    <span class="e-ver">v0.6.0</span>
+    <div class="e-ibtn"><svg width="15" height="15" viewBox="0 0 24 24"><use href="#i-cog" style="color:#14100f"/></svg></div>
+    <div class="e-ava">星</div>
+  </div>
+  <div class="e-body">
+    <div class="e-banner">
+      <h1>106 条命令，<br />挑一条就好</h1>
+      <p>命令表跟着 bili schema 自动更新，不用记分组</p>
+      <div class="e-bignum">106<em>COMMANDS</em></div>
+    </div>
+
+    <div class="e-sec"><h2>常用</h2><span class="badge">3</span><span class="more">全部命令 ›</span></div>
+    <div class="e-cards">
+      <div class="e-card e-y"><div class="e-tile">
+        <div class="ti"><svg width="17" height="17" viewBox="0 0 24 24"><use href="#i-eye" style="color:#14100f"/></svg></div>
+        <b>看懂视频</b><p>字幕、抽帧、热评，一次出全</p><span class="cmd">video.watch</span>
+      </div></div>
+      <div class="e-card e-m"><div class="e-tile">
+        <div class="ti"><svg width="17" height="17" viewBox="0 0 24 24"><use href="#i-fire" style="color:#14100f"/></svg></div>
+        <b>分区排行</b><p>按分区拉热榜，卡片直读</p><span class="cmd">hot.rank</span>
+      </div></div>
+      <div class="e-card e-w"><div class="e-tile">
+        <div class="ti"><svg width="17" height="17" viewBox="0 0 24 24"><use href="#i-inbox" style="color:#14100f"/></svg></div>
+        <b>收件箱</b><p>回复、@、赞、未读数一次收齐</p><span class="cmd">feed.inbox</span>
+      </div></div>
+    </div>
+
+    <div class="e-sec"><h2>最近跑过</h2><span class="badge">12</span><span class="more">历史 ›</span></div>
+    <div class="e-card">
+      <div class="e-row" style="grid-template-columns:186px minmax(0,1fr)">
+        <div class="cov g3" style="width:186px;height:105px;border-right:2px solid #14100f"><span class="nm">封面占位</span><span class="dur">24:52</span></div>
+        <div class="body">
+          <div class="no">13:21 · 4.55s</div>
+          <h3>折1万次、会坏吗？iPhone Duo 深度评测</h3>
+          <div class="m"><span><b>影视飓风</b></span><span>211.9万 播放</span><span>字幕 2000 字</span><span>抽帧 9 张</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="e-sec"><h2>值班在跑</h2><span class="badge">LIVE</span><span class="more">她看过什么 ›</span></div>
+    <div class="e-card e-m">
+      <div style="padding:13px 18px;display:flex;align-items:center;gap:14px">
+        <div style="width:34px;height:34px;border:2px solid #14100f;border-radius:10px;background:#fff;display:grid;place-items:center;flex:none">
+          <svg width="16" height="16" viewBox="0 0 24 24"><use href="#i-shield" style="color:#14100f"/></svg>
+        </div>
+        <div>
+          <div style="font-weight:800;font-size:14px">上一轮 02:14 完成 · 收 3 条、跳过 2 条</div>
+          <div style="font-size:12px;color:#04544c;font-weight:700;margin-top:1px">谷时窗口 01:00 – 06:00 · 今日 3 / 5 条</div>
+        </div>
+        <div style="margin-left:auto;font-size:12.5px;font-weight:800">查看报告 ›</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ E2 · 分区排行（粗野主义） ══════════════════ -->
+<div class="frame" data-shot="E2-rank" data-dir="E">
+  <div class="e-nav">
+    <div class="e-logo"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M7 4.5 20 12 7 19.5z" fill="#fff"/></svg></div>
+    <div class="e-name">bili<span>·view</span></div>
+    <div class="e-menu">
+      <span class="e-mi">看懂</span>
+      <span class="e-mi on">发现</span>
+      <span class="e-mi">互动</span>
+      <span class="e-mi">值班</span>
+    </div>
+    <div class="e-sp"></div>
+    <span class="e-ver">v0.6.0</span>
+    <div class="e-ibtn"><svg width="15" height="15" viewBox="0 0 24 24"><use href="#i-cog" style="color:#14100f"/></svg></div>
+    <div class="e-ava">星</div>
+  </div>
+  <div class="e-body">
+    <div class="e-cmdbar">
+      <span class="ps">$</span>
+      <span class="txt">bili hot rank --zone tech --limit 6 <i>--unseen</i></span>
+      <span class="go"><svg width="13" height="13" viewBox="0 0 24 24"><use href="#i-play" style="color:#fff"/></svg>运行</span>
+    </div>
+    <div class="e-chips">
+      <span class="e-chip on">分区 <em>tech · 科技</em> ✕</span>
+      <span class="e-chip">条数 <em>6</em> ✕</span>
+      <span class="e-chip p">只看没看过</span>
+      <span class="e-chip" style="margin-left:auto">6 条 · 2.06s</span>
+    </div>
+
+    <div class="e-sec"><h2>科技分区 · 今日热榜</h2><span class="badge">TECH</span><span class="more">导出 JSON ›</span></div>
+    <div class="e-res" id="e2-res"></div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-top:26px;font-size:12.5px;font-weight:800;color:#a1958d">
+      <span style="width:110px;height:2px;background:#e6ddd6"></span>
+      共 6 条 · 已显示全部 · 8.4 KB
+      <span style="width:110px;height:2px;background:#e6ddd6"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ E3 · 看懂视频（粗野主义） ══════════════════ -->
+<div class="frame" data-shot="E3-watch" data-dir="E">
+  <div class="e-nav">
+    <div class="e-logo"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M7 4.5 20 12 7 19.5z" fill="#fff"/></svg></div>
+    <div class="e-name">bili<span>·view</span></div>
+    <div class="e-menu">
+      <span class="e-mi on">看懂</span>
+      <span class="e-mi">发现</span>
+      <span class="e-mi">互动</span>
+      <span class="e-mi">值班</span>
+    </div>
+    <div class="e-sp"></div>
+    <span class="e-ver">v0.6.0</span>
+    <div class="e-ibtn"><svg width="15" height="15" viewBox="0 0 24 24"><use href="#i-cog" style="color:#14100f"/></svg></div>
+    <div class="e-ava">星</div>
+  </div>
+  <div class="e-body">
+    <div class="e-vh">
+      <div class="cov g3"><span class="nm">封面占位</span><span class="dur">24:52</span></div>
+      <div>
+        <h1>折1万次、会坏吗？<br />iPhone Duo 深度评测</h1>
+        <div class="tags">
+          <span class="c1">执行成功 4.55s</span>
+          <span>影视飓风</span>
+          <span class="c2">211.9万 播放</span>
+          <span>13.2万 赞</span>
+          <span>5.0万 投币</span>
+        </div>
+      </div>
+    </div>
+    <div class="e-quote">iPhone Duo 折叠屏 500 次折叠后折痕微小，铰链与电池表现优异，1 万次测试后铰链依旧稳定但转录在软件提示 bug，大屏优势明显，多屏协作优化流畅，影像系统强大，融合 15 年研发创新。</div>
+
+    <div class="e-sec"><h2>抽帧</h2><span class="badge">6 / 9</span><span style="font-size:12px;color:#8b8079;font-weight:600">每 2 分 40 秒一张</span><span class="more">原始 JSON ›</span></div>
+    <div class="e-fr" id="e3-fr"></div>
+
+    <div class="e-sec"><h2>热评</h2><span class="badge">5</span><span class="more">全部评论 ›</span></div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+      <div class="e-card" style="padding:13px 15px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <span style="font-weight:800;font-size:12.5px">@阿澈</span>
+          <span style="margin-left:auto;font-size:11.5px;font-weight:800;color:#ff5c8a">▲ 1.2万</span>
+        </div>
+        <div style="font-size:12.5px;line-height:1.6;color:#4a403c">「折一万次」这四个字看到就觉得钱包在抖</div>
+      </div>
+      <div class="e-card" style="padding:13px 15px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <span style="font-weight:800;font-size:12.5px">@键盘侠本侠</span>
+          <span style="margin-left:auto;font-size:11.5px;font-weight:800;color:#ff5c8a">▲ 8431</span>
+        </div>
+        <div style="font-size:12.5px;line-height:1.6;color:#4a403c">测到 500 次就没点耐心了吧，一万次真顶</div>
+      </div>
+      <div class="e-card" style="padding:13px 15px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <span style="font-weight:800;font-size:12.5px">@沉默的螺旋</span>
+          <span style="margin-left:auto;font-size:11.5px;font-weight:800;color:#ff5c8a">▲ 3204</span>
+        </div>
+        <div style="font-size:12.5px;line-height:1.6;color:#4a403c">铰链能停住才是关键，之前那些一放就塌</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const FRAMES = [
+    ['1:19', '手比划折痕'], ['4:05', '手机在键盘上'], ['6:50', '白色机身'],
+    ['9:36', '屏幕网格'], ['12:31', '实验室白色'], ['15:07', '手持拍摄'],
+    ['17:52', '合同文件'], ['20:45', '金发特写']
+  ];
+  const VIDEOS = [
+    { t: '折1万次、会坏吗？iPhone Duo 深度评测', up: '影视飓风', dur: '24:52', pv: '211.9万', like: '13.2万' },
+    { t: '电脑总是卡顿掉帧？原来是 ACE 根本没做好虚拟化', up: '宇哥侃数码', dur: '32:06', pv: '82.4万', like: '4.4万' },
+    { t: '我的所有全自动', up: '背包打游戏', dur: '03:35', pv: '92.4万', like: '8.3万' },
+    { t: '【何同学】蓝牙！时代极值？iPhone Duo 首发体验', up: '老师好我叫何同学', dur: '27:44', pv: '48.6万', like: '2.67万' },
+    { t: '荣耀 Robot Phone 上手体验：形态够打，用起来咋样？', up: '极客湾Geekerwan', dur: '06:06', pv: '86.5万', like: '1.5万' },
+    { t: 'iPhone Duo 首发评测：苹果的双屏对话框', up: '钟文泽', dur: '26:35', pv: '37.5万', like: '1.6万' }
+  ];
+
+  document.getElementById('d3-fr').innerHTML = FRAMES.map(([t, c], i) => `
+    <div class="f">
+      <div class="cov g${i + 1}"><span class="nm" style="font-size:9px">帧 ${i + 1}</span></div>
+      <div class="cap"><b>#${i + 1}</b><span>${t}</span></div>
+    </div>`).join('');
+
+  document.getElementById('e2-res').innerHTML = VIDEOS.map((v, i) => `
+    <div class="e-card">
+      <div class="e-row">
+        <div class="cov g${i + 1}"><span class="nm">封面占位</span><span class="dur">${v.dur}</span></div>
+        <div class="body">
+          <div class="no">NO.${String(i + 1).padStart(2, '0')}</div>
+          <h3>${v.t}</h3>
+          <div class="m"><span><b>${v.up}</b></span><span>${v.pv} 播放</span><span>${v.like} 赞</span></div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('e3-fr').innerHTML = FRAMES.slice(0, 6).map(([t, c], i) => `
+    <div class="f">
+      <div class="cov g${i + 1}"><span class="nm" style="font-size:9px">帧 ${i + 1}</span></div>
+      <div class="cap"><b>#${i + 1}</b><span>${t}</span></div>
+    </div>`).join('');
+
+  const keep = new URLSearchParams(location.search).get('s');
+  if (keep) {
+    document.querySelectorAll('.frame').forEach((f) => { if (f.dataset.shot !== keep) f.remove(); });
+  }
+</script>
+</body>
+</html>
