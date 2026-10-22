@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `yarn dev` / `npm run dev` / 双击「开发.bat」的一键开发入口：
+ * `yarn dev` / 双击「开发.bat」的一键开发入口：
  *   1. 环境不全就自动补齐（venv、依赖、前端 node_modules）
  *   2. 没有后端就先起 FastAPI（8811，带 --reload）
  *   3. 再起 Vite（5199，热更新）

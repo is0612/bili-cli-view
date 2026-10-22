@@ -27,6 +27,7 @@ const REQ = join(ROOT, 'backend', 'requirements.txt')
 const MARK = join(VENV, '.bili-desk-deps.json')
 const UV_LOCAL = isWin ? join(TOOLS, 'uv.exe') : join(TOOLS, 'uv')
 const NPM = isWin ? 'npm.cmd' : 'npm'
+const YARN = isWin ? 'yarn.cmd' : 'yarn'
 // node.exe 旁边的 npm 入口：直接用它，免得 Windows 上 spawn .cmd 报 EINVAL
 const NPM_CLI = join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
 
@@ -60,6 +61,13 @@ function onPath(name) {
 function npmRun(args, opts = {}) {
   if (existsSync(NPM_CLI)) return run(process.execPath, [NPM_CLI, ...args], opts)
   return run(NPM, args, { ...opts, shell: true })
+}
+
+/** 本项目用 yarn（只有 yarn.lock）；没装 yarn 才退回 npm，并且不生成 package-lock.json。 */
+function pkgRun(args, opts = {}) {
+  if (onPath('yarn')) return run(YARN, args, { ...opts, shell: isWin })
+  const npmArgs = args[0] === 'install' ? [...args, '--no-package-lock'] : args
+  return npmRun(npmArgs, opts)
 }
 
 export function findUvPath() {
@@ -181,13 +189,13 @@ async function ensureDeps(uv) {
 export async function ensureFrontendDeps() {
   if (existsSync(join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js'))) return false
   step('安装前端依赖（首次约 1 分钟）…')
-  if (!onPath('npm')) {
+  if (!onPath('node')) {
     throw new Error(
-      '这台机器没装 Node.js（npm 找不到）。\n' +
+      '这台机器没装 Node.js。\n' +
       '装一个再回来：https://nodejs.org/zh-cn/download （一路「下一步」即可）'
     )
   }
-  await npmRun(['install'])
+  await pkgRun(['install'])
   return true
 }
 
@@ -196,7 +204,7 @@ export async function ensureDist() {
   if (existsSync(join(ROOT, 'dist', 'index.html'))) return false
   await ensureFrontendDeps()
   step('构建前端（约 10~30 秒）…')
-  await npmRun(['run', 'build'])
+  await pkgRun(['run', 'build'])
   return true
 }
 

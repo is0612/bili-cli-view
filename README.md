@@ -130,7 +130,7 @@ node scripts/pack.mjs --with-uv  # → 17MB，连 .tools/uv.exe 一起带上，�
 
 | 想要 | 怎么做 | 跑的是 |
 | --- | --- | --- |
-| 日常用面板（单端口 8811，最省资源） | 双击 `启动.bat`，或 `npm start` | `scripts/start.mjs` |
+| 日常用面板（单端口 8811，最省资源） | 双击 `启动.bat`，或 `yarn start` | `scripts/start.mjs` |
 | 改代码（热更新，前端 5199） | 双击 `开发.bat`，或 `yarn dev` | `scripts/dev.mjs` |
 | 只跑前端、后端另开 | `yarn dev:web` | Vite |
 | 出问题先看报告 | 双击 `诊断.bat` | `scripts/doctor.mjs` |
@@ -146,7 +146,8 @@ node scripts/pack.mjs --with-uv  # → 17MB，连 .tools/uv.exe 一起带上，�
 关掉那个黑窗口就等于停止面板。
 
 `scripts/setup.mjs` 是上面两个脚本共用的「环境自愈」：找 / 下载 uv、建 venv、按 `requirements.txt`
-的哈希判断要不要重装依赖、缺前端依赖就 `npm install`。重复运行只花几秒。
+的哈希判断要不要重装依赖、缺前端依赖就 `yarn install`（没装 yarn 才回退 npm，且不会生成 package-lock）。
+重复运行只花几秒。
 
 ### 一条命令的等价写法
 

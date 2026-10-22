@@ -11,7 +11,7 @@ Start-Process -FilePath $py -WorkingDirectory (Join-Path $root 'backend') `
 
 Start-Sleep -Seconds 2
 Write-Host "[dev] 前端 http://127.0.0.1:5199"
-Start-Process -FilePath 'npm.cmd' -WorkingDirectory $root -ArgumentList 'run', 'dev' -WindowStyle Minimized
+Start-Process -FilePath 'yarn.cmd' -WorkingDirectory $root -ArgumentList 'run', 'dev' -WindowStyle Minimized
 
 Start-Sleep -Seconds 3
 Start-Process 'http://127.0.0.1:5199/'
