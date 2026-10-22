@@ -112,17 +112,16 @@ backend/app/
   media.py     封面代理 + 本地图片白名单
   paths.py     路径与 bili 可执行文件定位
 src/
-  App.vue              壳：顶栏 + 图标条 + 命令选择 + 结果区
+  App.vue              壳：顶栏 + 左侧菜单 + 工作区
   components/
-    RailNav.vue        56px 图标条（命令台 / 运行记录 / 值班 / 设置）
+    SidebarNav.vue     左侧菜单（分组折叠 + 搜索，el-sub-menu）
     CommandRunner.vue  横排参数行 + 命令行预览 + dry-run
     ResultCard.vue     ElCard + ElTag + ElCollapse（原始 JSON）
     NodeView.vue       递归渲染器（对象/数组/图片/长文本）
-    VideoCard.vue      横向阅读卡（160×90 封面 + 文字，封面走 /api/cover）
+    VideoCard.vue      列表行（160×90 封面 + 文字，封面走 /api/cover）
     WatchView.vue      ElCollapse/ElImage，看懂视频专用排版
     SettingsModal.vue  ElDialog + ElForm（人设 / 工作区 / Key）
     LoginModal.vue     ElDialog + ElImage（扫码登录）
-    SidebarNav.vue     旧的侧栏方案，已不被引用（保留供回看）
     ErrorBoundary.vue  渲染兜底，出错不白屏
   composables/useToast.ts   ElMessage 封装
   utils/format.ts           取值与格式化
@@ -153,9 +152,11 @@ src/
 - 写操作（点赞/收藏/投币/评论/私信/动态）默认自动加 `--dry-run`，要真发得手动取消勾选。
 - `bili` 的位置按 `BILI_BIN` → `PATH` → `~/.local/bin/bili.exe` 依次找，换机器不用改代码。
 - 凭证、二维码这些运行时文件都在 `runtime/` 和 DSH 自己的目录里，**不要提交到仓库**。
-- Element Plus 明色主题（B 阅读器方案）：`main.ts` 不再挂 `html.dark`，走默认 light 变量；
+- Element Plus 明色主题：`main.ts` 不再挂 `html.dark`，走默认 light 变量；
   底色 `#F4F6F9` / 卡片纯白，主色在 `style.css` 的 `:root` 里重排成 `#D94A76`
   （不是 `#FB7299` —— 后者配白字只有 2.9:1，过不了对比度）。
+- 布局是**后台系统式**的：左侧 252px 分组菜单（14 组用 `el-sub-menu` 折叠，
+  默认只展开当前命令所在组），右侧工作区放命令面板和结果。`Ctrl K` 聚焦菜单搜索框。
 
 ## 开机自启（让闹钟一直活着）
 

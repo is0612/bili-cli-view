@@ -51,15 +51,18 @@ export function cardSubtitle(node: Record<string, unknown>): string {
 export function statBits(node: Record<string, unknown>): string[] {
   const stat = (node.stat ?? node.stats) as Record<string, number> | undefined
   const bits: string[] = []
+  // 用文字标签而不是 emoji：emoji 在明色列表里颜色杂，读起来也不像后台系统
   if (stat) {
-    if (stat.view != null) bits.push('▶ ' + fmt(stat.view))
-    if (stat.like != null) bits.push('👍 ' + fmt(stat.like))
-    if (stat.danmaku != null) bits.push('💬 ' + fmt(stat.danmaku))
-    if (stat.reply != null) bits.push('↩ ' + fmt(stat.reply))
+    if (stat.view != null) bits.push(`${fmt(stat.view)} 播放`)
+    if (stat.like != null) bits.push(`${fmt(stat.like)} 赞`)
+    if (stat.coin != null) bits.push(`${fmt(stat.coin)} 币`)
+    if (stat.favorite != null) bits.push(`${fmt(stat.favorite)} 藏`)
+    if (stat.danmaku != null) bits.push(`${fmt(stat.danmaku)} 弹幕`)
+    if (stat.reply != null) bits.push(`${fmt(stat.reply)} 评论`)
   }
   if (node.duration != null) {
     const d = fmtDur(node.duration)
-    if (d) bits.push('⏱ ' + d)
+    if (d) bits.push(d)
   }
   if (typeof node.pubdate === 'string') bits.push(node.pubdate.slice(0, 10))
   return bits
