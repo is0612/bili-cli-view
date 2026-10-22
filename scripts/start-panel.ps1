@@ -1,7 +1,9 @@
 # Start the panel backend at logon. Idempotent: if it is already up, do nothing.
 # Called by the scheduled task "bili-desk" (hidden window).
 $root = Split-Path $PSScriptRoot -Parent
-$logDir = Join-Path $root 'runtime'
+# Personal data lives outside the repo: %APPDATA%\bili-desk (or BILI_DESK_HOME).
+$dataHome = if ($env:BILI_DESK_HOME) { $env:BILI_DESK_HOME } else { Join-Path $env:APPDATA 'bili-desk' }
+$logDir = Join-Path $dataHome 'logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $log = Join-Path $logDir 'panel.log'
 

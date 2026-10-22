@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "start": "node scripts/start.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:web": "vite",
     "build": "vue-tsc -b && vite build",

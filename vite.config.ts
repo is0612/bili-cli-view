@@ -8,8 +8,11 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5199,
     strictPort: true,
-    // 起服务就把浏览器拉起来（yarn dev / npm run dev 都走这里）
-    open: true,
+    // 后端是 Python，Vite 盯它既没用、又会被 uvicorn/编辑器的临时文件搞崩
+    // （EBUSY: resource busy or locked → 整个 dev 进程退出）
+    watch: {
+      ignored: ['**/backend/**', '**/.venv/**', '**/runtime/**'],
+    },
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8811',

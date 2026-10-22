@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 /**
- * `yarn dev` / `npm run dev` 的一键开发入口：
- *   1. 没有后端就先起 FastAPI（8811）
- *   2. 再起 Vite（5199，自动打开浏览器）
- *   3. Ctrl+C 时把后端一起收掉
+ * `yarn dev` / `npm run dev` / 双击「开发.bat」的一键开发入口：
+ *   1. 环境不全就自动补齐（venv、依赖、前端 node_modules）
+ *   2. 没有后端就先起 FastAPI（8811，带 --reload）
+ *   3. 再起 Vite（5199，热更新）
+ *   4. Ctrl+C 时把后端一起收掉
+ *
+ * 参数：--no-open  不自动打开浏览器（跑自动化验证时用）
  */
 import { spawn } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
@@ -11,13 +14,16 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { PYTHON, ensureBackend, ensureFrontendDeps } from './setup.mjs'
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const isWin = process.platform === 'win32'
 const BACKEND = 'http://127.0.0.1:8811'
+const noOpen = process.argv.includes('--no-open')
 
 /**
  * bili 的 HTTP 栈（curl_cffi → libcurl）在 Windows 上读不了中文路径下的证书：
- * 仓库放在 E:\工作\... 时，libcurl 会报 curl: (77) error adding trust anchors，
+ * 仓库放在 D:\中文目录\... 时，libcurl 会报 curl: (77) error adding trust anchors，
  * 结果是扫码登录和所有联网命令全挂。
  * 把 certifi 的 cacert.pem 复制到 ASCII 临时目录，用 CURL_CA_BUNDLE 指过去即可。
  */
@@ -34,18 +40,6 @@ function caEnv() {
   } catch {
     return {}
   }
-}
-
-function pythonPath() {
-  const candidates = isWin
-    ? [join(root, '.venv', 'Scripts', 'python.exe'), join(root, '.venv', 'Scripts', 'python')]
-    : [join(root, '.venv', 'bin', 'python')]
-  const hit = candidates.find((p) => existsSync(p))
-  if (!hit) {
-    console.error('[dev] 找不到 .venv，先跑：uv venv .venv && uv pip install -r backend/requirements.txt')
-    process.exit(1)
-  }
-  return hit
 }
 
 async function backendAlive() {
@@ -78,12 +72,14 @@ async function main() {
   if (await backendAlive()) {
     console.log('[dev] 后端已在 8811 上跑着，复用')
   } else {
-    const py = pythonPath()
+    // 环境缺什么就装什么：不再让人复制粘贴 uv 命令
+    const env = await ensureBackend()
+    const py = env.python || PYTHON
     console.log(`[dev] 启动后端 ${py} -m uvicorn app.main:app --port 8811`)
     const api = spawn(py, ['-m', 'uvicorn', 'app.main:app', '--port', '8811', '--reload'], {
       cwd: join(root, 'backend'),
       stdio: 'inherit',
-      env: { ...process.env, ...caEnv() },
+      env: { ...process.env, ...caEnv(), PYTHONIOENCODING: 'utf-8' },
     })
     children.push(api)
     api.on('exit', async (code) => {
@@ -102,8 +98,12 @@ async function main() {
     }
   }
 
-  console.log('[dev] 启动前端 Vite（5199，会自动打开浏览器）')
-  const vite = spawn(process.execPath, [join(root, 'node_modules', 'vite', 'bin', 'vite.js'), '--open'], {
+  await ensureFrontendDeps()
+
+  console.log(`[dev] 启动前端 Vite（5199${noOpen ? '' : '，会自动打开浏览器'}）`)
+  const viteArgs = [join(root, 'node_modules', 'vite', 'bin', 'vite.js')]
+  if (!noOpen) viteArgs.push('--open')
+  const vite = spawn(process.execPath, viteArgs, {
     cwd: root,
     stdio: 'inherit',
   })
@@ -111,4 +111,7 @@ async function main() {
   vite.on('exit', (code) => shutdown(code ?? 0))
 }
 
-main()
+main().catch((err) => {
+  console.error(`\n[dev] 启动失败：${err.message}`)
+  process.exit(1)
+})
