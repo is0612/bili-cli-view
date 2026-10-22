@@ -14,6 +14,7 @@ export interface CommandItem {
   label: string
   argv: string[]
   write?: boolean
+  kind?: string
   params?: Param[]
 }
 
@@ -57,4 +58,33 @@ export interface SettingsState {
   api_key_mask: string
   api_key_in_env: boolean
   duty_home: string
+}
+export interface DutyConfig {
+  perDay: number
+  peakValley: boolean
+  noon: boolean
+  night: boolean
+  autoComment: boolean
+  dmMode: 'off' | 'only' | 'both'
+  dmUid: number
+  reportLevel: 'full' | 'brief' | 'off'
+  workspace: string
+  keywords: string[]
+  transcribe: boolean
+  asrModel: string
+}
+
+export interface DutyState {
+  day: string
+  picked: number
+  rounds: number
+  perDay: number
+  remaining: number
+  report: string
+}
+
+export interface DutySnapshot {
+  config: DutyConfig
+  state: DutyState
+  windows: Record<string, { label: string; start: string; end: string }>
 }

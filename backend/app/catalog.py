@@ -26,6 +26,9 @@ def p(key: str, label: str, pos: bool = False, flag: str | None = None, ptype: s
 
 
 CATALOG: list[dict[str, Any]] = [
+    {"group": "刷B站", "items": [
+        {"id": "duty.settings", "label": "值班设置", "argv": [], "kind": "duty"},
+    ]},
     {"group": "账号", "items": [
         {"id": "auth.status", "label": "登录状态", "argv": ["auth", "status"]},
         {"id": "me.show", "label": "我的资料", "argv": ["me", "show"]},

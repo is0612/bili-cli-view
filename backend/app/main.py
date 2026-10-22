@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from . import media, settings
+from . import duty, media, settings
 from .catalog import CATALOG
 from .paths import CREDS_YAML, PROJECT_ROOT, QR_PATH, bili_bin, ensure_dirs
 from .runner import bili_json, run_bili
@@ -122,13 +122,39 @@ async def cancel_login() -> Any:
     return {"moved": moved, "status": status}
 
 
+# ───────────────────────── 刷B站值班 ─────────────────────────
+
+
+@app.get("/api/duty")
+async def get_duty() -> Any:
+    return duty.snapshot()
+
+
+@app.post("/api/duty")
+async def post_duty(body: dict[str, Any]) -> Any:
+    patch = {k: v for k, v in body.items() if k in duty.SCALARS or k == "keywords"}
+    if not patch:
+        raise HTTPException(status_code=400, detail="没有可写字段")
+    notes = duty.save(patch)
+    return {"ok": True, "notes": notes, "duty": duty.snapshot()}
+
+
+@app.post("/api/duty/reset")
+async def post_duty_reset() -> Any:
+    return {"ok": True, **duty.reset_today()}
+
+
+@app.get("/api/duty/report")
+async def get_duty_report(day: str | None = None) -> Any:
+    return duty.report(day)
+
+
 # ───────────────────────── 人设 / Key ─────────────────────────
 
 
 @app.get("/api/settings")
 async def get_settings() -> Any:
     return settings.state()
-
 
 @app.post("/api/settings")
 async def post_settings(body: SettingsBody) -> Any:

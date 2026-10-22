@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { Refresh, Setting, MagicStick, VideoPlay } from '@element-plus/icons-vue'
 import { api } from './api'
 import CommandRunner from './components/CommandRunner.vue'
+import DutyPanel from './components/DutyPanel.vue'
 import LoginModal from './components/LoginModal.vue'
 import ResultCard from './components/ResultCard.vue'
 import SettingsModal from './components/SettingsModal.vue'
@@ -120,31 +121,35 @@ onMounted(async () => {
         <SidebarNav :groups="groups" :active-id="active?.id ?? null" @select="choose" />
 
         <section class="work">
-          <CommandRunner
-            v-if="active"
-            ref="runnerRef"
-            :item="active"
-            :initial="initialValues"
-            :autorun="autoRun"
-            @run="run"
-          />
+          <DutyPanel v-if="active?.kind === 'duty'" />
 
-          <div v-if="!results.length" class="empty-block">
-            <div class="halo"><el-icon :size="24"><MagicStick /></el-icon></div>
-            <h4>{{ active ? '执行一下试试' : '从左边挑一条命令' }}</h4>
-            <p>
-              视频、字幕、热评、UP 主数据都会渲染成卡片；写操作默认带 --dry-run 预览，不会真的发出去。
-            </p>
-            <div style="display: flex; gap: 7px; flex-wrap: wrap; justify-content: center">
-              <el-tag effect="plain" size="small">video.watch 看懂视频</el-tag>
-              <el-tag effect="plain" size="small">hot.rank 分区排行</el-tag>
-              <el-tag effect="plain" size="small">feed.inbox 收件箱</el-tag>
+          <template v-else>
+            <CommandRunner
+              v-if="active"
+              ref="runnerRef"
+              :item="active"
+              :initial="initialValues"
+              :autorun="autoRun"
+              @run="run"
+            />
+
+            <div v-if="!results.length" class="empty-block">
+              <div class="halo"><el-icon :size="24"><MagicStick /></el-icon></div>
+              <h4>{{ active ? '执行一下试试' : '从左边挑一条命令' }}</h4>
+              <p>
+                视频、字幕、热评、UP 主数据都会渲染成卡片；写操作默认带 --dry-run 预览，不会真的发出去。
+              </p>
+              <div style="display: flex; gap: 7px; flex-wrap: wrap; justify-content: center">
+                <el-tag effect="plain" size="small">video.watch 看懂视频</el-tag>
+                <el-tag effect="plain" size="small">hot.rank 分区排行</el-tag>
+                <el-tag effect="plain" size="small">feed.inbox 收件箱</el-tag>
+              </div>
             </div>
-          </div>
 
-          <div v-else class="results" style="display: flex; flex-direction: column; gap: 14px">
-            <ResultCard v-for="(res, i) in results" :key="i" :result="res" />
-          </div>
+            <div v-else class="results" style="display: flex; flex-direction: column; gap: 14px">
+              <ResultCard v-for="(res, i) in results" :key="i" :result="res" />
+            </div>
+          </template>
         </section>
       </div>
     </el-main>

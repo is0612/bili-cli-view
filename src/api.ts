@@ -1,4 +1,4 @@
-import type { BiliUser, CommandGroup, Meta, RunResult, SettingsState } from './types'
+import type { BiliUser, CommandGroup, DutySnapshot, Meta, RunResult, SettingsState } from './types'
 
 async function http<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
@@ -52,6 +52,25 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }),
+
+  duty: () => http<DutySnapshot>('/api/duty'),
+
+  saveDuty: (patch: Partial<DutySnapshot['config']> & { keywords?: string[] }) =>
+    http<{ ok: boolean; notes: string[]; duty: DutySnapshot }>('/api/duty', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    }),
+
+  resetDuty: () =>
+    http<{ ok: boolean; archived: string | null; state: DutySnapshot }>('/api/duty/reset', {
+      method: 'POST',
+    }),
+
+  dutyReport: () =>
+    http<{ day: string; path: string; exists: boolean; picks: number; text: string }>(
+      '/api/duty/report',
+    ),
 
   coverUrl: (bvid: string) => `/api/cover?bvid=${encodeURIComponent(bvid)}`,
   imgUrl: (path: string) => `/api/img?p=${encodeURIComponent(path)}`,
