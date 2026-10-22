@@ -179,3 +179,42 @@ font-weight: 800;                        /* 标题 29–31px；正文也别用 4
 - 宋体标题的处理：独立杂志站的栏目头（大字号 + 大字距 + 细分割线，不用粗体）
 - 终端 TUI：k9s / lazygit / bpytop —— 数字 tab、字符框标题、底部状态栏这三个特征是它们的共同点
 - 粗野主义：Swiss 风格的现代变体（2px 描边 + 零模糊硬投影 + 满色块），不是"复古像素风"
+
+---
+
+## 九、已落地：B 方向（2026-10-22）
+
+分支 `feat/ui-light-b`，commit `e11638e`。`npm run typecheck` + `npm run build` 均通过，已在真机（8811）截图核对：首页 / 分区排行结果 / 看懂视频 / 值班设置 / 设置弹窗五页。
+
+### 改了什么
+
+| 文件 | 改动 |
+|---|---|
+| `src/main.ts` | 去掉 `dark/css-vars.css` 引用和 `classList.add('dark')`，两行 |
+| `src/style.css` | 整文件重写：`:root` 明色 token + 31 个 `--el-*` 重排 + 9 处暗层改浅色 + rail/chips/阅读卡新样式 |
+| `src/App.vue` | 布局从「264px 侧栏 + 主区」改成「56px rail + 单列 1060」；加视图状态、分组状态、跨组搜索、Ctrl K |
+| `src/components/RailNav.vue` | **新增**。命令台 / 运行记录 / 值班 / 设置四个入口 |
+| `src/components/CommandRunner.vue` | 竖排 el-form 改成横排参数行，dry-run 标记从勾选框挪到命令行预览右侧 |
+| `src/components/VideoCard.vue` | 4 列大卡改成 160×90 横向阅读卡 |
+| `README.md` | 同步：暗色说明改明色、目录里补 RailNav |
+
+`dist/` 和 `.workbuddy/` 走 .gitignore，没进版本库。
+
+### 和设计稿的偏差（有意为之）
+
+1. **rail 不是 7 个分类图标，是 4 个功能入口 + 主区分组 chips。**
+   真实 `bili schema` 是 **14 组**（刷B站/面板/账号/发现/视频/评论/私信/动态/投稿/合集/弹幕/转写/用户/系统），56px 塞不下 14 个图标，而且图标没有文字标签根本分不清。改成「rail 管视图，主区管分组」，14 组照样能到。
+
+2. **参数不是 chip 而是横排 inline 控件。**
+   设计稿里参数是「点一下展开编辑」的 chip，落地用 label + 控件的横排。原因是 14 组里有 `dm.autoreply.keyword.set` 这种 5 参数命令，chip 展开态反而多一次点击。视觉上仍是横排、紧凑，密度达到设计意图。
+
+3. **首页没有「值班在跑」块。**
+   值班进了 rail（Timer 图标），不再占首页篇幅。
+
+### 遗留（下次一起处理）
+
+- **运行按钮右对齐**，参数只有 3 个时中间空 300px。可以改成紧跟最后一个参数。
+- **`statBits` 的数据位没有分隔符**，渲染成 `496.0万 36.7万 4.1万 8236 4442 2026-10-19`，六个数挤在一起。改 `utils/format.ts` 加 `·` 分隔即可。
+- **`SidebarNav.vue` 已不被引用**，暂时保留。确认不回滚了再删。
+- **rail 不能 sticky**：给它设 `position: sticky` 时初始位置会被推到 `top` 偏移处（Chrome 在 grid item 上表现为错位 60px），所以现在是 `relative`。内容变长后要重新处理（挪到内层 wrapper）。
+
