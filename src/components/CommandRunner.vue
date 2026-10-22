@@ -47,8 +47,19 @@ const preview = computed(() =>
   'bili ' + argv.value.map((a) => (a.includes(' ') ? `"${a}"` : a)).join(' '),
 )
 
+/** 位置参数就是必填：空着直接跑，CLI 只会回一句 Missing argument。 */
+const missing = computed(() =>
+  inputs.value
+    .filter((p) => p.pos && !String(values[p.key] ?? '').trim())
+    .map((p) => p.label),
+)
+
 function submit() {
   if (busy.value) return
+  if (missing.value.length) {
+    ElMessage.warning({ message: `还差：${missing.value.join('、')}`, grouping: true })
+    return
+  }
   emit('run', argv.value)
 }
 
@@ -86,7 +97,11 @@ onMounted(() => {
     <el-form class="runner-form" label-position="top" @submit.prevent>
       <el-row :gutter="12">
         <el-col v-for="p in inputs" :key="p.key" :xs="24" :sm="12" :md="8" :lg="6">
-          <el-form-item :label="p.label">
+          <el-form-item>
+            <template #label>
+              <span>{{ p.label }}</span>
+              <span v-if="p.pos" style="color: var(--el-color-danger); margin-left: 3px">*</span>
+            </template>
             <el-select v-if="p.type === 'select'" v-model="values[p.key]" style="width: 100%">
               <el-option v-for="c in p.choices" :key="c" :label="c" :value="c" />
             </el-select>
@@ -116,8 +131,17 @@ onMounted(() => {
           margin-bottom: 14px;
         "
       >
+        <span v-if="missing.length" class="muted" style="margin-right: auto">
+          还差必填：{{ missing.join('、') }}
+        </span>
         <el-checkbox v-if="item.write" v-model="dryRun">安全预览（加 --dry-run）</el-checkbox>
-        <el-button type="primary" :loading="busy" style="width: 128px" @click="submit">
+        <el-button
+          type="primary"
+          :loading="busy"
+          :disabled="missing.length > 0"
+          style="width: 128px"
+          @click="submit"
+        >
           <el-icon v-if="!busy" style="margin-right: 5px"><VideoPlay /></el-icon>
           {{ busy ? '执行中' : '运行' }}
         </el-button>

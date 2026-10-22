@@ -200,7 +200,8 @@ def _prompt(cfg: dict[str, Any]) -> str:
         + f"- 抽帧：{cfg['frames']} 帧（0 = 不抽；这些图只有视觉模型才看得懂，你按 0 处理就行）\n"
         + f"- 投递：{dm}；{comment}\n"
         + f"- 判重表：{SEEN}\n"
-        + f"- 报告：{report_path()}\n\n"
+        + f"- 报告：{report_path()}\n"
+        + f"- 临时文件（写私信/评论正文用）：{DUTY_DIR / 'tmp-msg.txt'}\n\n"
         + "现在开始，最后用一句话汇报你挑到了什么。\n"
     )
 
