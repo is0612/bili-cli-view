@@ -15,6 +15,8 @@ export interface CommandItem {
   argv: string[]
   write?: boolean
   kind?: string
+  cmd?: string
+  desc?: string
   params?: Param[]
 }
 

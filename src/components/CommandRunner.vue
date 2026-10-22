@@ -91,6 +91,7 @@ onMounted(() => {
           <el-tag v-if="item.write" type="warning" effect="plain" size="small" round>写操作</el-tag>
         </div>
         <div class="cmd-chip" style="margin-top: 7px">bili {{ item.argv.join(' ') }}</div>
+        <div v-if="item.desc" class="muted" style="margin-top: 6px; line-height: 1.6">{{ item.desc }}</div>
       </div>
     </div>
 

@@ -36,7 +36,10 @@ const filtered = computed(() => {
     .map((g) => ({
       ...g,
       items: g.items.filter(
-        (i) => i.label.toLowerCase().includes(q) || i.argv.join(' ').toLowerCase().includes(q),
+        (i) =>
+          i.label.toLowerCase().includes(q) ||
+          (i.cmd ?? i.argv.join(' ')).toLowerCase().includes(q) ||
+          (i.desc ?? '').toLowerCase().includes(q),
       ),
     }))
     .filter((g) => g.items.length > 0)
@@ -69,7 +72,7 @@ const total = computed(() => props.groups.reduce((n, g) => n + g.items.length, 0
             @click="emit('select', item)"
           >
             <el-icon class="ico"><component :is="GROUP_ICON[group.group] ?? Grid" /></el-icon>
-            <span>{{ item.label }}</span>
+            <span :title="item.cmd ?? item.argv.join(' ')">{{ item.label }}</span>
             <el-tag v-if="item.write" size="small" type="warning" effect="plain" round style="margin-left: auto">
               写
             </el-tag>

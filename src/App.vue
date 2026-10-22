@@ -173,9 +173,9 @@ onMounted(async () => {
                 视频、字幕、热评、UP 主数据都会渲染成卡片；写操作默认带 --dry-run 预览，不会真的发出去。
               </p>
               <div style="display: flex; gap: 7px; flex-wrap: wrap; justify-content: center">
-                <el-tag effect="plain" size="small">video.watch 看懂视频</el-tag>
-                <el-tag effect="plain" size="small">hot.rank 分区排行</el-tag>
-                <el-tag effect="plain" size="small">feed.inbox 收件箱</el-tag>
+                <el-tag effect="plain" size="small">看懂视频</el-tag>
+                <el-tag effect="plain" size="small">分区排行</el-tag>
+                <el-tag effect="plain" size="small">收件箱</el-tag>
               </div>
             </div>
 

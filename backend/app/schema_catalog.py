@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import re
 import time
 from typing import Any
 
@@ -37,6 +38,45 @@ def _is_write(path: str) -> bool:
     return any(part in WRITE_VERBS for part in path.split()[1:])
 
 
+def _label(help_text: str, raw: str) -> str:
+    """中文短标签：去掉括号说明，取第一句，超长截断加省略号。"""
+    text = (help_text or "").strip().replace("\n", " ")
+    if not text:
+        return raw
+    text = re.sub(r"[（(][^）)]*[）)]", "", text)          # 去掉"（不会使服务器登出）"这类补充
+    first = re.split(r"[。；;：:，,]", text)[0].strip(" 　·-")
+    if len(first) > 12:
+        first = first[:12] + "…"
+    return first or raw
+
+
+PARAM_LABELS = {
+    "engine": "引擎", "kind": "类型", "status": "状态", "style": "样式",
+    "provider": "服务商", "base-url": "接口地址", "base_url": "接口地址",
+    "model": "模型", "device": "设备", "who": "谁", "uid": "UID",
+    "bvid": "BV 号", "keyword": "关键词", "text": "正文", "num": "条数",
+    "page": "页码", "pn": "页码", "ps": "每页条数", "order": "排序",
+}
+
+
+def _plabel(help_text: str, fallback: str) -> str:
+    """参数的中文标签：取 help 第一句，去掉括号说明，最多 14 个字。"""
+    fb = PARAM_LABELS.get(fallback, fallback)
+    text = (help_text or "").strip().replace("\n", " ")
+    if not text:
+        return fb
+    text = re.sub(r"[（(][^）)]*[）)]", "", text)
+    # "auto 字幕…" 这类开头是取值枚举，把枚举词去掉；"BV 号" 这种要留着
+    text = re.sub(r"^(auto|hd|preview|all|default|both)[ 　：:]*", "", text, flags=re.I)
+    first = re.split(r"[。；;：:，,]", text)[0].strip(" 　·-")
+    # 还是纯英文就别用它，退回参数名更有辨识度
+    if first.isascii():
+        return fb
+    if len(first) > 14:
+        first = first[:14] + "…"
+    return first or fb
+
+
 def _param(spec: dict[str, Any]) -> dict[str, Any] | None:
     name = spec.get("name") or ""
     if not name:
@@ -49,7 +89,7 @@ def _param(spec: dict[str, Any]) -> dict[str, Any] | None:
 
     if kind == "argument":
         return {
-            "key": name, "label": name, "pos": True, "flag": None,
+            "key": name, "label": _plabel(help_text, name), "pos": True, "flag": None,
             "type": "int" if ptype == "int" else "text",
             "default": "" if default is None else str(default),
             "choices": [], "ph": help_text[:40] or name,
@@ -58,11 +98,12 @@ def _param(spec: dict[str, Any]) -> dict[str, Any] | None:
     flag = flags[0] if flags else None
     if not flag:
         return None
+    label = _plabel(help_text, flag.lstrip("-"))
     if ptype in ("bool",) or isinstance(default, bool):
-        return {"key": name, "label": flag.lstrip("-"), "pos": False, "flag": flag,
+        return {"key": name, "label": label, "pos": False, "flag": flag,
                 "type": "bool", "default": "", "choices": [], "ph": help_text[:40]}
     return {
-        "key": name, "label": flag.lstrip("-"), "pos": False, "flag": flag,
+        "key": name, "label": label, "pos": False, "flag": flag,
         "type": "int" if ptype == "int" else "text",
         "default": "" if default is None else str(default),
         "choices": [], "ph": help_text[:40],
@@ -96,9 +137,10 @@ async def build() -> tuple[list[dict[str, Any]], str | None, bool]:
         params = [p for p in (_param(s) for s in (item.get("params") or [])) if p]
         buckets.setdefault(group, []).append({
             "id": raw.replace(" ", "."),
-            "label": raw,
+            "label": _label(str(item.get("help") or ""), raw),
+            "cmd": raw,
             "argv": argv,
-            "desc": str(item.get("help") or "")[:80],
+            "desc": str(item.get("help") or "").replace("\n", " ")[:120],
             "write": _is_write(raw),
             "params": params,
         })
