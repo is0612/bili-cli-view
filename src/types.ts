@@ -72,6 +72,10 @@ export interface DutyConfig {
   keywords: string[]
   transcribe: boolean
   asrModel: string
+  mentionName: string
+  commentPerRound: number
+  replyToComments: boolean
+  replyPerRound: number
 }
 
 export interface DutyState {
@@ -87,4 +91,20 @@ export interface DutySnapshot {
   config: DutyConfig
   state: DutyState
   windows: Record<string, { label: string; start: string; end: string }>
+}
+
+export interface SeenVideo {
+  date: string
+  bvid: string
+  title: string
+  author: string
+  result: string
+}
+
+export interface SeenPayload {
+  path: string
+  videos: SeenVideo[]
+  comments: { bvid: string; rpid: string; root: string; time: string; text: string }[]
+  rounds: { date: string; note: string }[]
+  stats: { total: number; picked: number; skipped: number; rounds: number }
 }

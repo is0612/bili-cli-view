@@ -143,6 +143,7 @@ def snapshot() -> dict[str, Any]:
         "config": {k: cfg.get(k) for k in [
             "perDay", "peakValley", "noon", "night", "autoComment", "dmMode", "dmUid",
             "reportLevel", "workspace", "keywords", "transcribe", "asrModel",
+            "mentionName", "commentPerRound", "replyToComments", "replyPerRound",
         ]},
         "state": {
             "day": st["day"],
@@ -178,6 +179,57 @@ def save(patch: dict[str, Any]) -> list[str]:
         notes.append("没找到 cordis.patch.yml，只改了 config.json")
     notes.append("DSH 里那套设置页要下次重启后才显示新值，但下一轮值班会按这里的值跑")
     return notes
+
+
+SEEN_MD = DUTY_HOME / "seen.md"
+
+
+def seen() -> dict[str, Any]:
+    """解析判重表：她看过哪些、收了几条、跳过理由、发过哪些评论。"""
+    text = ""
+    try:
+        text = SEEN_MD.read_text(encoding="utf-8")
+    except OSError:
+        pass
+
+    videos: list[dict[str, str]] = []
+    comments: list[dict[str, str]] = []
+    rounds: list[dict[str, str]] = []
+    section = ""
+
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line.startswith("## "):
+            section = line[3:].strip()
+            continue
+        if not line.startswith("- ") and not line.startswith("| "):
+            continue
+
+        if section.startswith("评论记录") and line.startswith("| "):
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            if len(cells) >= 5 and cells[0] not in ("BV", "---") and not set(cells[0]) <= {"-"}:
+                comments.append({"bvid": cells[0], "rpid": cells[1], "root": cells[2],
+                                 "time": cells[3], "text": cells[4]})
+            continue
+
+        if section.startswith("看过") and line.startswith("- "):
+            parts = [p.strip() for p in line[2:].split("·")]
+            if len(parts) >= 5:
+                videos.append({"date": parts[0], "bvid": parts[1], "title": parts[2],
+                               "author": parts[3], "result": " · ".join(parts[4:])})
+            elif len(parts) == 2:
+                rounds.append({"date": parts[0], "note": parts[1]})
+
+    picked = sum(1 for v in videos if v["result"].startswith("收"))
+    skipped = len(videos) - picked
+    return {
+        "path": str(SEEN_MD),
+        "videos": list(reversed(videos)),
+        "comments": list(reversed(comments)),
+        "rounds": list(reversed(rounds)),
+        "stats": {"total": len(videos), "picked": picked, "skipped": skipped,
+                  "rounds": len(rounds)},
+    }
 
 
 def report(day: str | None = None) -> dict[str, Any]:

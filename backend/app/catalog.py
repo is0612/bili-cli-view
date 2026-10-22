@@ -28,6 +28,8 @@ def p(key: str, label: str, pos: bool = False, flag: str | None = None, ptype: s
 CATALOG: list[dict[str, Any]] = [
     {"group": "刷B站", "items": [
         {"id": "duty.settings", "label": "值班设置", "argv": [], "kind": "duty"},
+        {"id": "duty.dynamic", "label": "发动态", "argv": [], "kind": "dynamic"},
+        {"id": "duty.seen", "label": "她看过什么", "argv": [], "kind": "seen"},
     ]},
     {"group": "账号", "items": [
         {"id": "auth.status", "label": "登录状态", "argv": ["auth", "status"]},

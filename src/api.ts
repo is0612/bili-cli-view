@@ -1,4 +1,4 @@
-import type { BiliUser, CommandGroup, DutySnapshot, Meta, RunResult, SettingsState } from './types'
+import type { BiliUser, CommandGroup, DutySnapshot, Meta, RunResult, SeenPayload, SettingsState } from './types'
 
 async function http<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
@@ -65,6 +65,15 @@ export const api = {
   resetDuty: () =>
     http<{ ok: boolean; archived: string | null; state: DutySnapshot }>('/api/duty/reset', {
       method: 'POST',
+    }),
+
+  seen: () => http<SeenPayload>('/api/duty/seen'),
+
+  postDynamic: (body: { text: string; images: string[]; at: string[]; dry_run: boolean }) =>
+    http<RunResult>('/api/duty/dynamic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     }),
 
   dutyReport: () =>

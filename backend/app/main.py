@@ -149,6 +149,36 @@ async def get_duty_report(day: str | None = None) -> Any:
     return duty.report(day)
 
 
+@app.get("/api/duty/seen")
+async def get_duty_seen() -> Any:
+    return duty.seen()
+
+
+class DynamicBody(BaseModel):
+    text: str
+    images: list[str] = []
+    at: list[str] = []
+    dry_run: bool = True
+
+
+@app.post("/api/duty/dynamic")
+async def post_duty_dynamic(body: DynamicBody) -> Any:
+    """代她发图文动态：先 dry-run 预览，确认了再真发。"""
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="动态正文不能为空")
+    argv = ["dynamic", "post", text]
+    for image in body.images:
+        if image.strip():
+            argv += ["--image", image.strip()]
+    for name in body.at:
+        if name.strip():
+            argv += ["--at", name.strip()]
+    if body.dry_run:
+        argv.append("--dry-run")
+    return await run_bili(argv)
+
+
 # ───────────────────────── 人设 / Key ─────────────────────────
 
 

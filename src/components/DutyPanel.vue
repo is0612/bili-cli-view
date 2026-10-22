@@ -22,6 +22,10 @@ const dmUid = ref(0)
 const reportLevel = ref<'full' | 'brief' | 'off'>('brief')
 const keywords = ref<string[]>([])
 const autoComment = ref(false)
+const mentionName = ref('')
+const commentPerRound = ref(1)
+const replyToComments = ref(false)
+const replyPerRound = ref(1)
 
 const remaining = computed(() => duty.value?.state.remaining ?? 0)
 const picked = computed(() => duty.value?.state.picked ?? 0)
@@ -38,6 +42,10 @@ function fill(snap: DutySnapshot) {
   reportLevel.value = (c.reportLevel ?? 'brief') as typeof reportLevel.value
   keywords.value = Array.isArray(c.keywords) ? [...c.keywords] : []
   autoComment.value = Boolean(c.autoComment)
+  mentionName.value = String(c.mentionName ?? '')
+  commentPerRound.value = Number(c.commentPerRound ?? 1)
+  replyToComments.value = Boolean(c.replyToComments)
+  replyPerRound.value = Number(c.replyPerRound ?? 1)
 }
 
 async function load() {
@@ -74,6 +82,10 @@ async function save() {
       reportLevel: reportLevel.value,
       keywords: keywords.value,
       autoComment: autoComment.value,
+      mentionName: mentionName.value,
+      commentPerRound: commentPerRound.value,
+      replyToComments: replyToComments.value,
+      replyPerRound: replyPerRound.value,
     })
     fill(res.duty)
     ElMessage.success({ message: '已保存，下一轮按新设置跑', grouping: true })
@@ -128,7 +140,7 @@ onMounted(async () => {
             今天 {{ picked }} / {{ perDay }}{{ remaining > 0 ? ` · 还能挑 ${remaining} 条` : ' · 额度已满' }}
           </el-tag>
         </div>
-        <div class="cmd-chip" style="margin-top: 7px">鲸鱼娘每天按谷时自己跑，只发私信</div>
+        <div class="cmd-chip" style="margin-top: 7px">{{ dmMode === 'only' ? '鲸鱼娘每天按谷时自己跑，只发私信' : dmMode === 'both' ? '鲸鱼娘每天按谷时自己跑：私信 + 公开评论' : '鲸鱼娘每天按谷时自己跑，不对外发任何东西' }}</div>
       </div>
       <el-button :icon="Refresh" text @click="load">刷新</el-button>
     </div>
@@ -186,8 +198,44 @@ onMounted(async () => {
         </el-col>
 
         <el-col :xs="24" :sm="12" :md="8" :lg="6">
-          <el-form-item label="自动公开评论并 @ 主人">
+          <el-form-item label="自动公开评论">
             <el-switch v-model="autoComment" />
+          </el-form-item>
+        </el-col>
+
+        <el-col v-if="autoComment" :xs="24" :sm="12" :md="8" :lg="6">
+          <el-form-item label="@ 谁（留空 = 不 @ 任何人）">
+            <el-input v-model="mentionName" placeholder="没有喵i" />
+          </el-form-item>
+        </el-col>
+
+        <el-col v-if="autoComment" :xs="24" :sm="12" :md="8" :lg="6">
+          <el-form-item label="每轮最多几条评论">
+            <el-input-number
+              v-model="commentPerRound"
+              :min="0"
+              :max="20"
+              controls-position="right"
+              style="width: 100%"
+            />
+          </el-form-item>
+        </el-col>
+
+        <el-col :xs="24" :sm="12" :md="8" :lg="6">
+          <el-form-item label="回复别人在她评论下的留言">
+            <el-switch v-model="replyToComments" />
+          </el-form-item>
+        </el-col>
+
+        <el-col v-if="replyToComments" :xs="24" :sm="12" :md="8" :lg="6">
+          <el-form-item label="每轮最多回几条">
+            <el-input-number
+              v-model="replyPerRound"
+              :min="1"
+              :max="10"
+              controls-position="right"
+              style="width: 100%"
+            />
           </el-form-item>
         </el-col>
 
@@ -219,7 +267,7 @@ onMounted(async () => {
       :closable="false"
       show-icon
       style="margin-top: 14px"
-      title="公开评论会真的发出去（挂在北海大肥鱼那个号上）；不想让她说话就把投递方式设成“只发私信”。"
+      title="公开评论会真的发出去（挂在北海大肥鱼那个号上）。「@ 谁」留空就是纯自己评论，不通知任何人。"
     />
 
     <el-collapse style="margin-top: 16px" @change="(v: any) => v.includes('report') && loadReport()">

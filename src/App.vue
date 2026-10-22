@@ -4,6 +4,8 @@ import { MagicStick, Refresh, Setting, TopRight, VideoPlay } from '@element-plus
 import { api } from './api'
 import CommandRunner from './components/CommandRunner.vue'
 import DutyPanel from './components/DutyPanel.vue'
+import DynamicPanel from './components/DynamicPanel.vue'
+import SeenPanel from './components/SeenPanel.vue'
 import LoginModal from './components/LoginModal.vue'
 import ResultCard from './components/ResultCard.vue'
 import SettingsModal from './components/SettingsModal.vue'
@@ -149,6 +151,8 @@ onMounted(async () => {
 
         <section class="work">
           <DutyPanel v-if="active?.kind === 'duty'" />
+          <DynamicPanel v-else-if="active?.kind === 'dynamic'" />
+          <SeenPanel v-else-if="active?.kind === 'seen'" />
 
           <template v-else>
             <CommandRunner
