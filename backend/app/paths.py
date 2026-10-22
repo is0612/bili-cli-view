@@ -17,10 +17,22 @@ BILI_CONFIG_DIR = Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming"
 
 
 def bili_bin() -> str:
-    """找 `bili` 可执行文件：环境变量 > PATH > uv tool 的默认位置。"""
+    """找 `bili` 可执行文件。
+
+    顺序：BILI_BIN 环境变量 > **项目自己的 .venv** > PATH > uv tool 的默认位置。
+    项目 venv 优先，是为了「换台电脑 clone 下来就能用」—— 把 bili-agent 装进同一个 venv，
+    不再需要全局 `uv tool install`（见 scripts/install.ps1）。
+    """
     env = os.environ.get("BILI_BIN")
     if env and Path(env).exists():
         return env
+    for cand in (
+        PROJECT_ROOT / ".venv" / "Scripts" / "bili.exe",
+        PROJECT_ROOT / ".venv" / "Scripts" / "bili",
+        PROJECT_ROOT / ".venv" / "bin" / "bili",
+    ):
+        if cand.exists():
+            return str(cand)
     found = shutil.which("bili")
     if found:
         return found

@@ -226,6 +226,10 @@ async def run_round(why: str = "manual") -> dict[str, Any]:
         env["DSH_PERMISSION_MODE"] = "danger-full-access"   # 沙箱里 pwsh 起不来（0xC0000142）
         env["PYTHONIOENCODING"] = "utf-8"
         env.setdefault("DEEPSEEK_API_KEY", _deepseek_key())
+        # 让子进程里的 `bili` 也走项目 venv 那份（和面板用的是同一个版本）
+        venv_bin = PROJECT_ROOT / ".venv" / ("Scripts" if os.name == "nt" else "bin")
+        if venv_bin.exists():
+            env["PATH"] = str(venv_bin) + os.pathsep + env.get("PATH", "")
         proc = await asyncio.create_subprocess_exec(
             NODE, str(DSH_BIN), "--profile", "headless", prompt,
             cwd=str(PROJECT_ROOT),

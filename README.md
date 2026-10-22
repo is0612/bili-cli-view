@@ -68,13 +68,18 @@ APScheduler（谷时窗口，每 30 秒看一眼）
 ## 跑起来
 
 ```bash
-# 1) 依赖（首次）
-uv venv .venv
-uv pip install --python .venv\Scripts\python.exe -r backend/requirements.txt
-npm install        # 或者 yarn
+# 换台电脑：一条命令装完（venv + bili-cli + 前端依赖 + 构建 + 起服务）
+powershell -ExecutionPolicy Bypass -File scripts/install.ps1
+```
 
-# 2) 一条命令起全套：后端 8811 + 前端 5199 + 自动开浏览器
-yarn dev           # 等同 npm run dev
+它会做四件事：建 `.venv` → 装后端依赖**和 bili-cli**（装进项目 venv，不用全局 `uv tool install`）
+→ 装前端依赖并 `npm run build` → 起 FastAPI 并打开 http://127.0.0.1:8811/ 。第一次打开扫码登录即可。
+
+开发模式还是两件事：
+
+```bash
+yarn dev      # 后端 8811 + 前端 5199（热更新）+ 自动开浏览器
+yarn dev:web  # 只起前端
 ```
 
 `yarn dev` 实际跑的是 `scripts/dev.mjs`：

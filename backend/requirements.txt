@@ -1,2 +1,7 @@
+# 后端依赖
 fastapi>=0.115
 uvicorn[standard]>=0.34
+
+# bili-cli 本体：装进项目自己的 venv，换台电脑不用再全局装
+# （backend/app/paths.py 找 bili 的顺序：BILI_BIN > 项目 .venv > PATH > ~/.local/bin）
+bili-agent>=0.5
