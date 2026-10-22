@@ -9,3 +9,4 @@ runtime/
 .vite/
 
 *.tsbuildinfo
+.workbuddy/

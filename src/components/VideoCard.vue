@@ -21,18 +21,22 @@ const url = computed(() => (typeof props.node.url === 'string' ? props.node.url 
 
 <template>
   <el-card class="vcard" shadow="never" :body-style="{ padding: '0' }">
-    <div v-if="src && !broken" class="cover">
-      <img :src="src" loading="lazy" alt="" @error="broken = true" />
-      <span v-if="duration" class="duration">{{ duration }}</span>
-    </div>
-    <div style="padding: 11px 12px 12px">
-      <div class="title">
-        <a v-if="url" :href="url" target="_blank" rel="noreferrer">{{ title }}</a>
-        <template v-else>{{ title }}</template>
+    <div class="vcard-in">
+      <div v-if="src && !broken" class="cover">
+        <img :src="src" loading="lazy" alt="" @error="broken = true" />
+        <span v-if="duration" class="duration">{{ duration }}</span>
       </div>
-      <div v-if="subtitle" class="sub">{{ subtitle }}</div>
-      <div class="stats">
-        <span v-for="(bit, i) in stats" :key="i">{{ bit }}</span>
+      <div v-else class="cover" />
+
+      <div class="vbody">
+        <div class="title">
+          <a v-if="url" :href="url" target="_blank" rel="noreferrer">{{ title }}</a>
+          <template v-else>{{ title }}</template>
+        </div>
+        <div v-if="subtitle" class="sub">{{ subtitle }}</div>
+        <div v-if="stats.length" class="stats">
+          <span v-for="(bit, i) in stats" :key="i">{{ bit }}</span>
+        </div>
       </div>
     </div>
   </el-card>
