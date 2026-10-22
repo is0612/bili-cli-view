@@ -154,9 +154,38 @@ a:hover {
 
 .topbar > .el-tag,
 .topbar > .el-button,
-.topbar > .brand {
+.topbar > .brand,
+.topbar > .tag-link {
   flex: none;
   white-space: nowrap;
+}
+
+/* 顶栏账号 / 主人 chip 做成链接：点一下开 B站 主页 */
+.tag-link {
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.tag-link .el-tag {
+  cursor: pointer;
+  transition: all 0.15s var(--ease);
+}
+
+.tag-link:hover .el-tag {
+  border-color: var(--pink);
+  color: #fff;
+  background: rgba(251, 114, 153, 0.12);
+}
+
+.tag-link-icon {
+  margin-left: 4px;
+  font-size: 11px;
+  opacity: 0.55;
+  vertical-align: -1px;
+}
+
+.tag-link:hover .tag-link-icon {
+  opacity: 1;
 }
 
 .spacer {

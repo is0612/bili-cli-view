@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { Refresh, Setting, MagicStick, VideoPlay } from '@element-plus/icons-vue'
+import { MagicStick, Refresh, Setting, TopRight, VideoPlay } from '@element-plus/icons-vue'
 import { api } from './api'
 import CommandRunner from './components/CommandRunner.vue'
 import DutyPanel from './components/DutyPanel.vue'
@@ -28,6 +28,7 @@ const demo = ref(false)
 const { notify } = useToast()
 
 const loggedIn = computed(() => Boolean(meta.value?.auth.ok && meta.value?.auth.user))
+const spaceUrl = (mid: number | string) => `https://space.bilibili.com/${mid}`
 const level = computed(() => meta.value?.auth.user?.level ?? '?')
 
 async function loadMeta() {
@@ -98,14 +99,40 @@ onMounted(async () => {
       </div>
 
       <el-tag v-if="!demo" round effect="plain" type="info" size="default">v{{ meta?.version ?? '…' }}</el-tag>
-      <el-tag v-if="!demo" round :type="loggedIn ? 'success' : 'danger'" effect="plain">
-        <span
-          v-if="loggedIn"
-          style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 6px"
-        />
-        {{ loggedIn ? `${meta?.auth.user?.name} · Lv${level}` : '未登录' }}
-      </el-tag>
-      <el-tag v-if="!demo && meta?.owner" round effect="plain" type="info">主人 · {{ meta.owner.name }}</el-tag>
+
+      <!-- 账号 chip：点一下开自己的 B站 主页 -->
+      <a
+        v-if="!demo && meta?.auth.user"
+        class="tag-link"
+        :href="spaceUrl(meta.auth.user.mid)"
+        target="_blank"
+        rel="noreferrer"
+        :title="`打开 ${meta.auth.user.name} 的B站主页`"
+      >
+        <el-tag round type="success" effect="plain">
+          <span
+            style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 6px"
+          />
+          {{ meta.auth.user.name }} · Lv{{ level }}
+          <el-icon class="tag-link-icon"><TopRight /></el-icon>
+        </el-tag>
+      </a>
+      <el-tag v-else-if="!demo" round type="danger" effect="plain">未登录</el-tag>
+
+      <!-- 主人 chip：同样可点 -->
+      <a
+        v-if="!demo && meta?.owner"
+        class="tag-link"
+        :href="spaceUrl(meta.owner.mid)"
+        target="_blank"
+        rel="noreferrer"
+        :title="`打开 ${meta.owner.name} 的B站主页`"
+      >
+        <el-tag round effect="plain" type="info">
+          主人 · {{ meta.owner.name }}
+          <el-icon class="tag-link-icon"><TopRight /></el-icon>
+        </el-tag>
+      </a>
 
       <span class="spacer" />
 
