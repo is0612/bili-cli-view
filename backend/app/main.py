@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from . import agent, duty, media, settings
+from . import agent, duty, media, selfcheck, settings
 from .catalog import CATALOG
 from .paths import CREDS_YAML, PROJECT_ROOT, QR_PATH, bili_bin, ensure_dirs
 from .runner import bili_json, run_bili
@@ -125,6 +125,11 @@ async def cancel_login() -> Any:
             pass
     status = await bili_json(["auth", "status"], timeout=40)
     return {"moved": moved, "status": status}
+
+
+@app.get("/api/selfcheck")
+async def get_selfcheck() -> Any:
+    return await selfcheck.run()
 
 
 # ───────────────────────── 自动值班（bili-cli 版） ─────────────────────────

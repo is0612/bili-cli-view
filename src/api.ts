@@ -55,6 +55,11 @@ export const api = {
 
   duty: () => http<DutySnapshot>('/api/agent'),
 
+  selfcheck: () =>
+    http<{ ok: boolean; version: string | null; advice: string; checks: { name: string; ok: boolean; detail: string; hint: string }[] }>(
+      '/api/selfcheck',
+    ),
+
   saveDuty: (patch: Partial<DutySnapshot['config']> & { keywords?: string[] }) =>
     http<{ ok: boolean; notes: string[]; agent: DutySnapshot }>('/api/agent/save', {
       method: 'POST',

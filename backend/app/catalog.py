@@ -113,6 +113,7 @@ CATALOG: list[dict[str, Any]] = [
                       choices=["views", "favorites", "new"])]},
     ]},
     {"group": "系统", "items": [
+        {"id": "selfcheck", "label": "升级自检", "argv": [], "kind": "selfcheck"},
         {"id": "schema", "label": "全量命令表", "argv": ["schema"]},
         {"id": "skills.status", "label": "技能安装状态", "argv": ["skills", "status"]},
         {"id": "asr.status", "label": "语音转写状态", "argv": ["asr", "status"]},
