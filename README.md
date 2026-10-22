@@ -13,6 +13,16 @@ bili-cli 的图形控制台：**Vite + Vue 3 + TypeScript + Element Plus** 前�
 
 > 截图里的账号信息已隐去（`?demo=1` 会隐藏顶栏的版本/账号/主人三个 chip）。
 
+## 命令表跟着 schema 走
+
+侧栏不是手写的固定清单：后端每次（缓存 5 分钟）读 `bili schema`，把**全部命令**映射成
+分组 + 表单，参数、必填、默认值都从 schema 里取。所以 bili-cli 增删命令、改参数，面板自动跟上。
+
+- 现在同步到 **0.6.0 · 14 组 · 106 条**（含 upload / danmaku interact / season / asr 这些）
+- `bili schema` 挂了或结构变了 ⇒ 退回 `backend/app/catalog.py` 的手写常用集，面板不会白屏
+- 升级完 bili 想确认"面板还能不能跑"，去「面板 → 升级自检」
+
+![命令表](docs/screenshot-catalog.png)
 ## 自动值班（bili-cli 版）
 
 面板里有一组「刷B站」：

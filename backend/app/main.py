@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from . import agent, duty, media, selfcheck, settings
+from . import agent, duty, media, schema_catalog, selfcheck, settings
 from .catalog import CATALOG
 from .paths import CREDS_YAML, PROJECT_ROOT, QR_PATH, bili_bin, ensure_dirs
 from .runner import bili_json, run_bili
@@ -59,9 +59,25 @@ async def get_ping() -> Any:
     return {"ok": True}
 
 
+SPECIAL_GROUPS: list[dict[str, Any]] = [
+    {"group": "刷B站", "items": [
+        {"id": "duty.settings", "label": "值班设置", "argv": [], "kind": "duty"},
+        {"id": "duty.dynamic", "label": "发动态", "argv": [], "kind": "dynamic"},
+        {"id": "duty.seen", "label": "她看过什么", "argv": [], "kind": "seen"},
+    ]},
+    {"group": "面板", "items": [
+        {"id": "selfcheck", "label": "升级自检", "argv": [], "kind": "selfcheck"},
+    ]},
+]
+
+
 @app.get("/api/catalog")
 async def get_catalog() -> Any:
-    return {"groups": CATALOG}
+    """侧栏命令表：以 `bili schema` 为准（新增/改名自动跟上），失败才退回手写清单。"""
+    groups, version, from_schema = await schema_catalog.build()
+    if not from_schema:
+        return {"groups": CATALOG, "source": "static"}
+    return {"groups": SPECIAL_GROUPS + groups, "source": "schema", "version": version}
 
 
 @app.get("/api/meta")
