@@ -11,6 +11,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import time
 from datetime import datetime, date
 from pathlib import Path
@@ -230,12 +231,25 @@ async def run_round(why: str = "manual") -> dict[str, Any]:
         venv_bin = PROJECT_ROOT / ".venv" / ("Scripts" if os.name == "nt" else "bin")
         if venv_bin.exists():
             env["PATH"] = str(venv_bin) + os.pathsep + env.get("PATH", "")
+        # 值班会话会起 node → dsh → pwsh → bili 一整串控制台程序。
+        # 面板本身是 pythonw（无控制台），如果不给它一个**隐藏的**控制台，
+        # 每个子进程都会自己开一个黑窗 ⇒ 一次值班刷满屏。
+        # 做法：CREATE_NEW_CONSOLE 给 node 一个控制台，但用 SW_HIDE 藏起来，后代继承它。
+        creationflags = 0
+        startupinfo = None
+        if os.name == "nt":
+            creationflags = 0x00000010  # CREATE_NEW_CONSOLE
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
         proc = await asyncio.create_subprocess_exec(
             NODE, str(DSH_BIN), "--profile", "headless", prompt,
             cwd=str(PROJECT_ROOT),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
             env=env,
+            creationflags=creationflags,
+            startupinfo=startupinfo,
         )
         try:
             out, _ = await asyncio.wait_for(proc.communicate(), timeout=900)

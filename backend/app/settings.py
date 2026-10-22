@@ -61,7 +61,8 @@ def _set_creds_key(key: str) -> bool:
 
 def _set_user_env(name: str, value: str) -> bool:
     try:
-        subprocess.run(["setx", name, value], capture_output=True, timeout=20)
+        subprocess.run(["setx", name, value], capture_output=True, timeout=20,
+                       creationflags=0x08000000 if os.name == "nt" else 0)   # 不弹黑窗
         return True
     except Exception:  # noqa: BLE001
         return False

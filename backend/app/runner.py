@@ -10,6 +10,10 @@ from typing import Any
 
 from .paths import bili_bin
 
+# Windows：面板用 pythonw 起（没有控制台），子进程再起控制台程序会**新开黑窗口**。
+# 用 CREATE_NO_WINDOW 让它彻底不分配控制台 —— 否则每点一次面板就闪一个 cmd 窗。
+CREATE_NO_WINDOW = 0x08000000 if os.name == "nt" else 0
+
 
 async def run_bili(argv: list[str], timeout: float = 240.0) -> dict[str, Any]:
     """执行 `bili <argv...>`，把 stdout、解析出的 JSON、耗时一起返回。"""
@@ -26,6 +30,7 @@ async def run_bili(argv: list[str], timeout: float = 240.0) -> dict[str, Any]:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
+            creationflags=CREATE_NO_WINDOW,
         )
         try:
             out_b, err_b = await asyncio.wait_for(proc.communicate(), timeout=timeout)
