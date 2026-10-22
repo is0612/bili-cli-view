@@ -63,9 +63,73 @@ function npmRun(args, opts = {}) {
   return run(NPM, args, { ...opts, shell: true })
 }
 
-/** 本项目用 yarn（只有 yarn.lock）；没装 yarn 才退回 npm，并且不生成 package-lock.json。 */
+function npmGlobalPrefix() {
+  // 同样优先走 npm 的 JS 入口：spawn `npm.cmd` 需要 shell，Node 会为此报 DEP0190
+  const res = existsSync(NPM_CLI)
+    ? spawnSync(process.execPath, [NPM_CLI, 'prefix', '-g'], { encoding: 'utf8' })
+    : spawnSync(NPM, ['prefix', '-g'], { encoding: 'utf8', shell: isWin })
+  return res.status === 0 ? res.stdout.trim() : ''
+}
+
+// 最终选中的包管理器：一个能跑 `yarn <args>` 的函数；null = 用 npm
+let pkgExec = null
+
+/**
+ * 找一个能用的 yarn，返回「怎么跑它」的函数。
+ * 优先直接 `node .../yarn/bin/yarn.js`：不用 shell、没有引号转义问题，
+ * 也顺手避掉 Node 对 `shell: true + args` 的 DEP0190 警告。
+ */
+function yarnRunner() {
+  const prefix = npmGlobalPrefix()
+  if (prefix) {
+    const js = join(prefix, 'node_modules', 'yarn', 'bin', 'yarn.js')
+    if (existsSync(js)) return (args, opts = {}) => run(process.execPath, [js, ...args], opts)
+    const cmd = join(prefix, isWin ? 'yarn.cmd' : join('bin', 'yarn'))
+    if (existsSync(cmd)) return (args, opts = {}) => run(cmd, args, { ...opts, shell: isWin })
+  }
+  if (onPath('yarn')) return (args, opts = {}) => run(YARN, args, { ...opts, shell: isWin })
+  return null
+}
+
+/**
+ * 选包管理器：本项目用 yarn（只有 yarn.lock），别人的电脑上没有就**先装一份**，
+ * 装不上再退回 npm（加 --no-package-lock，免得又生成 package-lock.json）。
+ *
+ * 顺序：本机已有的 yarn → npm i -g yarn@1.22.22 → npx 临时跑 yarn → npm。
+ */
+export async function resolvePackageManager() {
+  if (pkgExec) return
+
+  pkgExec = yarnRunner()
+  if (pkgExec) return
+
+  step('这台机器没装 yarn，先替你装一份（装不上会自动退回 npm，不影响使用）…')
+  try {
+    await npmRun(['install', '-g', 'yarn@1.22.22'])
+  } catch { /* 权限/网络失败都往下走 */ }
+
+  // npm 全局 bin 不一定在 PATH 里（要重开终端才刷新），所以按 npm prefix 直接找
+  pkgExec = yarnRunner()
+  if (pkgExec) {
+    say('   yarn 装好了')
+    return
+  }
+
+  // 实在装不上：用 npx 临时跑同一版本的 yarn，仍然按 yarn.lock 装
+  try {
+    await npmRun(['exec', '--yes', 'yarn@1.22.22', '--', '--version'])
+    say('   改用 npx 临时跑 yarn（不安装到全局）')
+    pkgExec = (args, opts = {}) =>
+      run(process.execPath, [NPM_CLI, 'exec', '--yes', 'yarn@1.22.22', '--', ...args], opts)
+    return
+  } catch { /* 继续退到 npm */ }
+
+  say('   装不上 yarn（可能没权限或没网），这次用 npm 跑，装完一样能用。')
+  pkgExec = null
+}
+
 function pkgRun(args, opts = {}) {
-  if (onPath('yarn')) return run(YARN, args, { ...opts, shell: isWin })
+  if (pkgExec) return pkgExec(args, opts)
   const npmArgs = args[0] === 'install' ? [...args, '--no-package-lock'] : args
   return npmRun(npmArgs, opts)
 }
@@ -195,6 +259,7 @@ export async function ensureFrontendDeps() {
       '装一个再回来：https://nodejs.org/zh-cn/download （一路「下一步」即可）'
     )
   }
+  await resolvePackageManager()
   await pkgRun(['install'])
   return true
 }
@@ -203,6 +268,7 @@ export async function ensureFrontendDeps() {
 export async function ensureDist() {
   if (existsSync(join(ROOT, 'dist', 'index.html'))) return false
   await ensureFrontendDeps()
+  await resolvePackageManager()
   step('构建前端（约 10~30 秒）…')
   await pkgRun(['run', 'build'])
   return true

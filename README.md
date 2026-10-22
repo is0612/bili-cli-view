@@ -146,8 +146,11 @@ node scripts/pack.mjs --with-uv  # → 17MB，连 .tools/uv.exe 一起带上，�
 关掉那个黑窗口就等于停止面板。
 
 `scripts/setup.mjs` 是上面两个脚本共用的「环境自愈」：找 / 下载 uv、建 venv、按 `requirements.txt`
-的哈希判断要不要重装依赖、缺前端依赖就 `yarn install`（没装 yarn 才回退 npm，且不会生成 package-lock）。
-重复运行只花几秒。
+的哈希判断要不要重装依赖、缺前端依赖就 `yarn install`。重复运行只花几秒。
+
+前端包管理器按这个顺序取：本机已有 yarn → 没有就 `npm i -g yarn@1.22.22` 装一份（不需要管理员）→
+装不上就 `npx` 临时跑同一版本 → 再不行才退回 npm（加 `--no-package-lock`，不会又生成 `package-lock.json`）。
+所以对方电脑上**不需要预先装 yarn**。
 
 ### 一条命令的等价写法
 
