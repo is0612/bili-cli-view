@@ -240,3 +240,30 @@ font-weight: 800;                        /* 标题 29–31px；正文也别用 4
 - **没有面包屑**。现在命令名靠卡片标题承担，严格的后台会再加一条 `发现 / 排行榜`。
 - **侧栏不能 sticky**：给 grid item 设 `position: sticky` 时初始位置会被推偏（Chrome 上实测偏移约 60px），
   现在是 `relative` + `max-height` 内部滚动。内容再长要挪到内层 wrapper 才能 sticky。
+
+### 第二轮：整页锁死 + 尺寸放大
+
+反馈是"侧边栏贴边内滚、右边内容固定高度、尽量不要滚动整个页面，做得大气一点，输入框小了、圆角太圆"。逐条落：
+
+| 要求 | 改法 |
+|---|---|
+| 整页不滚 | `html, body, #app { height: 100%; overflow: hidden }`，`.shell` 是 `height: 100%` 的 flex column |
+| 侧栏贴边 + 内滚 | `.side-panel { height: 100% }`，`.side-scroll { flex: 1; overflow-y: auto }`；去掉了 sticky（grid item 上会被推偏） |
+| 右侧固定高度 + 内滚 | `.work { height: 100% }` + `.work-scroll { flex: 1; overflow-y: auto }` |
+| 大气 | 顶栏 60→64，左栏 252→268，间距 18→24，卡片内边距 20→22，主标题 19→23，命令标题 15.5→17 |
+| 输入框小了 | 控件统一 38px（`--ctl-h`），字号 13→14 |
+| 圆角太圆 | 卡片 14→10，控件 10→8，小件 7→6，侧栏 14→10 |
+
+**踩到的坑**：`.work-scroll` 是 flex column，子项默认 `flex-shrink: 1`，内容一高**命令面板会被压成一条线**（只剩 40px）。
+修法是 `.work-scroll > * { flex: none }`。这类"容器内滚动 + flex"的组合，子项必须显式禁止压缩。
+
+**参数 label 截断的真正原因**：不在前端 CSS，在 `backend/app/schema_catalog.py`
+的 `_plabel()` —— 它把 help 文本截到 14 字加省略号。改了三处：
+1. 上限 14 → 24 字
+2. `PARAM_LABELS` 里给 `unseen / max-chars / frames / zone / limit` 等高频参数补人工中文名（"只看没看过"）
+3. **人工映射优先**：原来只有 help 为空时才用映射，导致"过滤掉已经用 \`bili video watch…"这种半句一直显示
+
+### 遗留（第三轮再说）
+
+- 侧栏展开多个分组时，选中项可能在可视区外，需要 `scrollIntoView`。
+- 「运行记录」里同名命令跑多次会平铺，考虑按命令合并。

@@ -1,6 +1,8 @@
 /* ────────────────────────────────────────────────────────────
    bili-cli-view · 主题层（明色 · 后台系统布局）
-   左：分组 + 命令的菜单树   右：命令面板 + 结果
+
+   结构：外壳锁死一屏，两栏各自内部滚动，整页不滚。
+   左：268px 分组菜单   右：命令面板 + 结果
 
    三个原则：
    1. 底色不用纯白（#F4F6F9），卡片才用纯白 —— 靠明度差分层
@@ -31,11 +33,18 @@
   --grad-brand: linear-gradient(135deg, #ff8fae 0%, #ef5f8b 100%);
   --grad-btn: linear-gradient(135deg, #d94a76 0%, #c2395f 100%);
 
-  --radius: 14px;
+  /* 圆角收窄：卡片 10 / 控件 8 / 小件 6 */
+  --radius: 10px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
   --shadow-sm: 0 1px 2px rgba(20, 30, 50, 0.05);
   --shadow-md: 0 8px 24px -16px rgba(20, 30, 50, 0.35);
   --shadow-lg: 0 18px 48px -28px rgba(20, 30, 50, 0.5);
+
+  /* 控件高度：比默认 32 大一档，看着更舒展 */
+  --ctl-h: 38px;
 }
 
 /* ── Element Plus 明色变量重排 ───────────────────────────── */
@@ -66,35 +75,38 @@
   --el-border-color-lighter: #eef1f6;
   --el-border-color-extra-light: #f4f6f9;
 
-  --el-border-radius-base: 10px;
-  --el-border-radius-small: 8px;
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
 
   --el-box-shadow-light: 0 10px 26px -20px rgba(20, 30, 50, 0.45);
   --el-mask-color: rgba(15, 22, 32, 0.45);
+  --el-card-padding: 20px 22px;
 
   --el-menu-bg-color: transparent;
   --el-menu-hover-bg-color: #f4f6f9;
   --el-menu-text-color: #475264;
   --el-menu-active-color: #bf3a63;
-  --el-menu-item-height: 32px;
-  --el-menu-sub-item-height: 32px;
+  --el-menu-item-height: 36px;
+  --el-menu-sub-item-height: 36px;
 }
 
 * {
   box-sizing: border-box;
 }
 
+/* ── 外壳锁死一屏 ───────────────────────────────────────── */
 html,
 body,
 #app {
   height: 100%;
+  overflow: hidden;
 }
 
 body {
   margin: 0;
   color: var(--text);
   font:
-    13.5px/1.6 -apple-system,
+    14px/1.6 -apple-system,
     'Segoe UI',
     'PingFang SC',
     'Microsoft YaHei',
@@ -117,20 +129,47 @@ a:hover {
   color: #1b5dbd;
 }
 
+/* 细滚动条 */
+.work-scroll::-webkit-scrollbar,
+.side-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.work-scroll::-webkit-scrollbar-thumb,
+.side-scroll::-webkit-scrollbar-thumb {
+  background: #d5dbe5;
+  border: 3px solid transparent;
+  border-radius: 6px;
+  background-clip: content-box;
+}
+
+.work-scroll::-webkit-scrollbar-thumb:hover,
+.side-scroll::-webkit-scrollbar-thumb:hover {
+  background: #bcc5d3;
+  background-clip: content-box;
+}
+
+.work-scroll::-webkit-scrollbar-track,
+.side-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 /* ── 顶栏 ───────────────────────────────────────────────── */
 .shell {
-  min-height: 100vh;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 30;
+  flex: none;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 20px;
-  height: 60px;
+  padding: 0 26px;
+  height: 64px;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
@@ -138,13 +177,13 @@ a:hover {
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin-right: 6px;
+  gap: 10px;
+  margin-right: 8px;
 }
 
 .brand-mark {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 8px;
   background: var(--grad-brand);
   display: grid;
@@ -154,7 +193,7 @@ a:hover {
 }
 
 .brand-name {
-  font-size: 14.5px;
+  font-size: 15.5px;
   font-weight: 700;
   letter-spacing: 0.01em;
 }
@@ -203,67 +242,65 @@ a:hover {
   flex: 1;
 }
 
-/* ── 布局：左侧菜单 + 右侧工作区 ────────────────────────── */
+/* ── 两栏：都撑满高度，各自内部滚动 ─────────────────────── */
 .main {
-  padding: 16px 20px 40px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 22px 26px;
 }
 
 .layout {
+  height: 100%;
   display: grid;
-  grid-template-columns: 252px minmax(0, 1fr);
-  gap: 18px;
-  max-width: 1600px;
+  grid-template-columns: 268px minmax(0, 1fr);
+  gap: 24px;
+  max-width: 1680px;
   margin: 0 auto;
-  align-items: start;
 }
 
-.work {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-width: 0;
-  min-height: calc(100vh - 140px);
-}
-
-/* ── 左侧菜单 ───────────────────────────────────────────── */
+/* 左栏 */
 .side-panel {
-  position: relative;
-  align-self: start;
-  max-height: calc(100vh - 96px);
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
 }
 
 .side-search {
-  padding: 12px 12px 10px;
+  flex: none;
+  padding: 14px 14px 12px;
   border-bottom: 1px solid var(--line);
 }
 
 .side-scroll {
-  overflow: auto;
-  padding: 8px 6px 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 8px 14px;
 }
 
 /* 运行记录（菜单顶部的独立项） */
 .side-ov {
-  width: calc(100% - 8px);
-  margin: 0 4px 6px;
-  height: 34px;
+  width: 100%;
+  margin: 0 0 8px;
+  height: 38px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   padding: 0 10px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-2);
   font: inherit;
-  font-size: 13px;
+  font-size: 13.5px;
   cursor: pointer;
   text-align: left;
   transition: background 0.15s var(--ease), color 0.15s var(--ease);
@@ -281,7 +318,7 @@ a:hover {
 }
 
 .side-ov .el-icon {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 /* 分组菜单 */
@@ -291,11 +328,11 @@ a:hover {
 }
 
 .side-menu .el-sub-menu__title {
-  height: 32px;
-  line-height: 32px;
+  height: 34px;
+  line-height: 34px;
   padding: 0 10px !important;
-  border-radius: 8px;
-  font-size: 11.5px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: #8b95a4;
@@ -326,7 +363,7 @@ a:hover {
 
 .side-menu .grp-cnt {
   font:
-    10.5px/1 Consolas,
+    11px/1 Consolas,
     monospace;
   color: var(--faint);
   margin-right: 16px;
@@ -334,13 +371,13 @@ a:hover {
 }
 
 .side-menu .el-menu-item {
-  height: 32px;
-  line-height: 32px;
+  height: 36px;
+  line-height: 36px;
   min-width: 0;
   padding: 0 10px 0 22px !important;
   margin: 1px 0;
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
   color: var(--text-2);
   transition: background 0.15s var(--ease), color 0.15s var(--ease);
 }
@@ -369,9 +406,9 @@ a:hover {
 }
 
 .w {
-  font-size: 9.5px;
-  line-height: 13px;
-  padding: 0 3px;
+  font-size: 10px;
+  line-height: 14px;
+  padding: 0 4px;
   border: 1px solid currentColor;
   border-radius: 4px;
   opacity: 0.55;
@@ -381,15 +418,15 @@ a:hover {
 
 /* 搜索时的平铺列表 */
 .flat-group {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .flat-head {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 10px 4px;
-  font-size: 11px;
+  padding: 10px 10px 4px;
+  font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: #8b95a4;
@@ -398,24 +435,24 @@ a:hover {
 .flat-head em {
   font-style: normal;
   font-family: Consolas, monospace;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--faint);
   font-weight: 400;
 }
 
 .nav-item {
   width: 100%;
-  height: 32px;
+  height: 36px;
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 0 10px 0 22px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-2);
   font: inherit;
-  font-size: 13px;
+  font-size: 13.5px;
   cursor: pointer;
   text-align: left;
   transition: background 0.15s var(--ease), color 0.15s var(--ease);
@@ -434,18 +471,42 @@ a:hover {
 }
 
 .nav-empty {
-  padding: 18px 12px;
+  padding: 20px 12px;
   color: var(--dim);
-  font-size: 12.5px;
+  font-size: 13px;
   text-align: center;
 }
 
-/* ── 页面头 ─────────────────────────────────────────────── */
+/* ── 右栏 ───────────────────────────────────────────────── */
+.work {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.work-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-right: 6px;
+}
+
+/* 滚动容器里的子项不许被压缩：否则内容一高，命令面板会被 flex 挤成一条 */
+.work-scroll > * {
+  flex: none;
+}
+
 .page-crumb {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
+  gap: 7px;
+  font-size: 12px;
   color: var(--faint);
 }
 
@@ -455,40 +516,41 @@ a:hover {
 }
 
 .page-head h1 {
-  margin: 4px 0 0;
-  font-size: 19px;
+  margin: 5px 0 0;
+  font-size: 23px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 .page-head p {
-  margin: 5px 0 0;
+  margin: 6px 0 0;
   color: var(--dim);
-  font-size: 13px;
+  font-size: 13.5px;
 }
 
 .section-h {
   display: flex;
   align-items: baseline;
-  gap: 9px;
-  margin: 4px 0 0;
+  gap: 10px;
+  margin: 2px 0 0;
 }
 
 .section-h h2 {
   margin: 0;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
 
 .section-h span {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--faint);
+  font-family: Consolas, monospace;
 }
 
 .section-h .more {
   margin-left: auto;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--pink);
   cursor: pointer;
   background: none;
@@ -501,17 +563,17 @@ a:hover {
 .quick {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
 .qcard {
-  padding: 14px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius);
   cursor: pointer;
   transition: all 0.18s var(--ease);
   text-align: left;
@@ -519,57 +581,62 @@ a:hover {
 }
 
 .qcard:hover {
-  border-color: #f2c0d0;
-  box-shadow: 0 10px 24px -20px rgba(217, 74, 118, 0.8);
+  border-color: #f0b9cb;
+  box-shadow: 0 12px 26px -22px rgba(217, 74, 118, 0.9);
   transform: translateY(-1px);
 }
 
 .qcard .qi {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
   background: var(--pink-soft);
   color: var(--pink);
-  margin-bottom: 3px;
+  margin-bottom: 8px;
+}
+
+.qcard .qi .el-icon {
+  font-size: 19px;
 }
 
 .qcard b {
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 700;
 }
 
 .qcard p {
   margin: 0;
-  font-size: 12px;
-  line-height: 1.55;
+  font-size: 12.5px;
+  line-height: 1.6;
   color: var(--dim);
 }
 
 .qcard code {
+  margin-top: 4px;
   font:
-    11px/1 Consolas,
+    11.5px/1 Consolas,
     monospace;
   color: var(--faint);
 }
 
 /* ── 命令面板 ───────────────────────────────────────────── */
 .runner-card {
-  border-radius: 14px;
+  border-radius: var(--radius);
 }
 
 .runner-head {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 14px;
 }
 
 .runner-icon {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   flex: none;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
   color: var(--pink);
@@ -580,49 +647,66 @@ a:hover {
 .runner-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15.5px;
+  gap: 9px;
+  font-size: 17px;
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .cmd-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 24px;
-  padding: 0 9px;
-  border-radius: 7px;
+  height: 27px;
+  padding: 0 10px;
+  border-radius: var(--radius-xs);
   background: var(--bg);
   border: 1px solid var(--line);
   color: #5a6472;
-  font-size: 11.5px;
+  font-size: 12px;
   font-family: 'JetBrains Mono', Consolas, monospace;
   white-space: nowrap;
 }
 
 .runner-params {
-  margin-top: 12px;
+  margin-top: 16px;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 12px;
+  gap: 14px 16px;
   align-items: flex-end;
 }
 
 .fld {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 132px;
+  gap: 6px;
+  min-width: 156px;
 }
 
 .fld.is-wide {
-  flex: 1 1 260px;
+  flex: 1 1 300px;
 }
 
 .fld > label {
-  font-size: 11px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 16px;
+  font-size: 11.5px;
   color: var(--dim);
   letter-spacing: 0.02em;
+  /* 长 label 允许折两行，超出才省略 */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+/* 布尔参数（"启用"开关）的 label 普遍是长句，给固定宽度 */
+.fld.is-tog {
+  flex: 0 0 236px;
+  min-width: 236px;
 }
 
 .fld > label i {
@@ -631,26 +715,49 @@ a:hover {
   margin-left: 2px;
 }
 
+/* 输入框统一抬高一档（38px），文字也大一号 */
+.runner-params .el-input__wrapper,
+.runner-params .el-select__wrapper,
+.side-search .el-input__wrapper {
+  min-height: var(--ctl-h);
+  border-radius: var(--radius-sm);
+  padding: 1px 12px;
+}
+
+.runner-params .el-input__inner,
+.runner-params .el-select__placeholder,
+.side-search .el-input__inner {
+  font-size: 14px;
+}
+
+.runner-params .el-checkbox {
+  height: var(--ctl-h);
+}
+
+.runner-params .el-checkbox__label {
+  font-size: 13.5px;
+}
+
 .runner-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   margin-left: auto;
-  padding-bottom: 1px;
+  padding-bottom: 2px;
 }
 
 .preview {
-  margin-top: 14px;
+  margin-top: 16px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-radius: 10px;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
   border: 1px dashed var(--line-strong);
   color: #5a6472;
   font-family: Consolas, monospace;
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .preview code {
@@ -662,19 +769,19 @@ a:hover {
 }
 
 .preview .dry {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--amber);
   border: 1px solid #ecd9b4;
   background: #fdf8ee;
-  border-radius: 5px;
-  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  padding: 2px 7px;
   font-family: inherit;
   white-space: nowrap;
 }
 
 /* ── 结果 ───────────────────────────────────────────────── */
 .result-card {
-  border-radius: 14px;
+  border-radius: var(--radius);
 }
 
 .result-card.is-error {
@@ -685,10 +792,10 @@ a:hover {
 .res-head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
-  padding-bottom: 12px;
-  margin-bottom: 14px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -698,19 +805,19 @@ a:hover {
   align-items: center;
   gap: 8px;
   color: var(--faint);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .kv {
   display: grid;
-  grid-template-columns: 132px minmax(0, 1fr);
-  gap: 9px 16px;
-  font-size: 13.5px;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 10px 18px;
+  font-size: 14px;
 }
 
 .kv .k {
   color: var(--dim);
-  font-size: 12.5px;
+  font-size: 13px;
   padding-top: 1px;
 }
 
@@ -720,20 +827,20 @@ a:hover {
 }
 
 .kv .v img {
-  max-width: 260px;
-  border-radius: 12px;
+  max-width: 280px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--line);
 }
 
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
+  gap: 12px;
 }
 
-/* 列表行：160×90 封面 + 右侧文字 */
+/* 列表行：176×99 封面 + 右侧文字 */
 .vcard {
-  border-radius: 12px;
+  border-radius: var(--radius);
   transition:
     border-color 0.18s var(--ease),
     box-shadow 0.18s var(--ease),
@@ -741,26 +848,27 @@ a:hover {
 }
 
 .vcard:hover {
-  border-color: #f2c0d0 !important;
+  border-color: #f0b9cb !important;
   box-shadow: 0 12px 30px -24px rgba(20, 30, 50, 0.6);
   transform: translateY(-1px);
 }
 
 .vcard-in {
   display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
-  gap: 14px;
-  padding: 9px;
+  grid-template-columns: 176px minmax(0, 1fr);
+  gap: 16px;
+  padding: 12px;
   align-items: center;
 }
 
 .vcard .cover {
   position: relative;
-  width: 160px;
-  height: 90px;
-  border-radius: 9px;
+  width: 176px;
+  height: 99px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   background: var(--bg);
+  flex: none;
 }
 
 .vcard .cover img {
@@ -791,11 +899,11 @@ a:hover {
 
 .vcard .vbody {
   min-width: 0;
-  padding-right: 6px;
+  padding-right: 8px;
 }
 
 .vcard .title {
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.45;
   letter-spacing: -0.005em;
@@ -814,8 +922,8 @@ a:hover {
 }
 
 .vcard .sub {
-  margin-top: 5px;
-  font-size: 12.5px;
+  margin-top: 6px;
+  font-size: 13px;
   color: var(--dim);
   white-space: nowrap;
   overflow: hidden;
@@ -825,63 +933,63 @@ a:hover {
 .vcard .stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 13px;
-  margin-top: 7px;
-  font-size: 12px;
+  gap: 16px;
+  margin-top: 9px;
+  font-size: 12.5px;
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
 
 .summary-block {
-  margin-top: 14px;
-  padding: 13px 15px;
-  border-radius: 12px;
+  margin-top: 16px;
+  padding: 15px 17px;
+  border-radius: var(--radius);
   background: linear-gradient(90deg, rgba(124, 92, 214, 0.055), transparent);
   border: 1px solid rgba(124, 92, 214, 0.15);
   border-left: 2px solid var(--violet);
-  font-size: 13.5px;
-  line-height: 1.8;
+  font-size: 14px;
+  line-height: 1.85;
   color: #3f4a5a;
 }
 
 .watch-title {
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 700;
   line-height: 1.4;
   letter-spacing: -0.01em;
-  margin-bottom: 8px;
+  margin-bottom: 9px;
 }
 
 .watch-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 9px;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--dim);
   align-items: center;
 }
 
 .watch-meta span {
   background: var(--bg);
-  border-radius: 6px;
-  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  padding: 3px 9px;
 }
 
 .mono {
   font-family: 'JetBrains Mono', Consolas, monospace;
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 pre.code {
   margin: 0;
-  padding: 13px 15px;
+  padding: 15px 17px;
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   overflow: auto;
   max-height: 420px;
   font-family: 'JetBrains Mono', Consolas, monospace;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
@@ -894,55 +1002,55 @@ pre.code {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 300px;
-  padding: 40px 20px;
-  border-radius: 14px;
+  min-height: 320px;
+  padding: 44px 24px;
+  border-radius: var(--radius);
   border: 1px dashed var(--line-strong);
   background: var(--surface);
 }
 
 .empty-block .halo {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 14px;
   display: grid;
   place-items: center;
   color: #fff;
   background: var(--grad-brand);
   box-shadow: 0 14px 30px -16px rgba(217, 74, 118, 0.75);
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .empty-block h4 {
-  margin: 0 0 6px;
-  font-size: 14.5px;
+  margin: 0 0 7px;
+  font-size: 15px;
   font-weight: 700;
 }
 
 .empty-block p {
   margin: 0;
-  max-width: 440px;
+  max-width: 460px;
   color: var(--dim);
-  font-size: 13px;
-  line-height: 1.75;
+  font-size: 13.5px;
+  line-height: 1.8;
   text-align: center;
 }
 
 /* ── 弹窗 / 表单 ────────────────────────────────────────── */
 .el-dialog {
-  border-radius: 16px;
+  border-radius: 14px;
   border: 1px solid var(--line);
   box-shadow: 0 32px 70px -40px rgba(20, 30, 50, 0.55);
 }
 
 .el-dialog__header {
   margin-right: 0;
-  padding-bottom: 10px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
 }
 
 .el-dialog__title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -951,23 +1059,24 @@ pre.code {
 
 .qr-box {
   display: flex;
-  gap: 20px;
+  gap: 22px;
   align-items: flex-start;
   flex-wrap: wrap;
-  margin-top: 16px;
+  margin-top: 18px;
 }
 
 .qr-box img {
   width: 220px;
   height: 220px;
   padding: 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: #fff;
   border: 1px solid var(--line);
 }
 
 .el-button {
   font-weight: 500;
+  border-radius: var(--radius-sm);
 }
 
 .el-button--primary {
@@ -982,7 +1091,7 @@ pre.code {
 }
 
 .el-tag {
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
 }
 
 .el-card {
@@ -997,35 +1106,25 @@ pre.code {
 
 .muted {
   color: var(--dim);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
-footer {
-  padding: 0 20px 24px;
-  color: var(--faint);
-  font-size: 11.5px;
-  text-align: center;
-}
-
-@media (max-width: 1080px) {
+@media (max-width: 1120px) {
   .layout {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 232px minmax(0, 1fr);
+    gap: 18px;
   }
-  .side-panel {
-    position: static;
-    max-height: none;
-  }
-  .side-scroll {
-    max-height: 320px;
+  .main {
+    padding: 18px;
   }
   .quick {
     grid-template-columns: minmax(0, 1fr);
   }
   .vcard-in {
-    grid-template-columns: 128px minmax(0, 1fr);
+    grid-template-columns: 140px minmax(0, 1fr);
   }
   .vcard .cover {
-    width: 128px;
-    height: 72px;
+    width: 140px;
+    height: 79px;
   }
 }

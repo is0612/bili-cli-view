@@ -56,12 +56,23 @@ PARAM_LABELS = {
     "model": "模型", "device": "设备", "who": "谁", "uid": "UID",
     "bvid": "BV 号", "keyword": "关键词", "text": "正文", "num": "条数",
     "page": "页码", "pn": "页码", "ps": "每页条数", "order": "排序",
+    # 这几个 help 原文太长，自动截断后只剩半句，直接给人话
+    "unseen": "只看没看过", "max-chars": "正文字数", "frames": "抽帧张数",
+    "zone": "分区", "limit": "返回条数", "no-comment": "不开评论",
+    "with-cover": "带封面", "dry-run": "只预览不发出",
 }
 
 
 def _plabel(help_text: str, fallback: str) -> str:
-    """参数的中文标签：取 help 第一句，去掉括号说明，最多 14 个字。"""
+    """参数的中文标签：取 help 第一句，去掉括号说明，最多 24 个字。
+
+    前端参数区现在是 236px 起步的宽字段、允许折两行，14 字的上限会把
+    "过滤掉已经用 bili view 看过的" 这种句子切得只剩半句，所以放宽到 24。
+    """
     fb = PARAM_LABELS.get(fallback, fallback)
+    # 人工映射优先：help 原文常常长到只剩半句，不如直接给一句人话
+    if fallback in PARAM_LABELS:
+        return fb
     text = (help_text or "").strip().replace("\n", " ")
     if not text:
         return fb
@@ -72,8 +83,8 @@ def _plabel(help_text: str, fallback: str) -> str:
     # 还是纯英文就别用它，退回参数名更有辨识度
     if first.isascii():
         return fb
-    if len(first) > 14:
-        first = first[:14] + "…"
+    if len(first) > 24:
+        first = first[:24] + "…"
     return first or fb
 
 

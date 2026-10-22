@@ -6,13 +6,35 @@
  *   3. Ctrl+C 时把后端一起收掉
  */
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const isWin = process.platform === 'win32'
 const BACKEND = 'http://127.0.0.1:8811'
+
+/**
+ * bili 的 HTTP 栈（curl_cffi → libcurl）在 Windows 上读不了中文路径下的证书：
+ * 仓库放在 E:\工作\... 时，libcurl 会报 curl: (77) error adding trust anchors，
+ * 结果是扫码登录和所有联网命令全挂。
+ * 把 certifi 的 cacert.pem 复制到 ASCII 临时目录，用 CURL_CA_BUNDLE 指过去即可。
+ */
+function caEnv() {
+  if (!isWin) return {}
+  const src = join(root, '.venv', 'Lib', 'site-packages', 'certifi', 'cacert.pem')
+  if (!existsSync(src)) return {}
+  try {
+    const dir = join(tmpdir(), 'bili-ca')
+    const dst = join(dir, 'cacert.pem')
+    mkdirSync(dir, { recursive: true })
+    copyFileSync(src, dst)
+    return { CURL_CA_BUNDLE: dst, SSL_CERT_FILE: dst }
+  } catch {
+    return {}
+  }
+}
 
 function pythonPath() {
   const candidates = isWin
@@ -61,6 +83,7 @@ async function main() {
     const api = spawn(py, ['-m', 'uvicorn', 'app.main:app', '--port', '8811', '--reload'], {
       cwd: join(root, 'backend'),
       stdio: 'inherit',
+      env: { ...process.env, ...caEnv() },
     })
     children.push(api)
     api.on('exit', async (code) => {

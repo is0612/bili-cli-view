@@ -43,15 +43,27 @@ const filtered = computed(() => {
 /** 搜索时全展开，清空后回到默认展开 */
 const openList = computed(() => (query.value.trim() ? filtered.value.map((g) => g.group) : opened.value))
 
+/** 选中命令：把所在组加进展开列表，然后清空搜索切回折叠菜单 */
+function pick(it: CommandItem) {
+  const g = props.groups.find((grp) => grp.items.some((i) => i.id === it.id))
+  if (g && !opened.value.includes(g.group)) opened.value = [...opened.value, g.group]
+  emit('select', it)
+  query.value = ''
+}
+
 watch(
   () => [props.activeId, props.groups.length],
   () => {
-    if (opened.value.length) return
     const groups = props.groups
     if (!groups.length) return
     const cur = groups.find((g) => g.items.some((i) => i.id === props.activeId))
+    if (cur && !opened.value.includes(cur.group)) {
+      opened.value = opened.value.length ? [...opened.value, cur.group] : [cur.group]
+      return
+    }
+    if (opened.value.length) return
     const first = groups[0]?.group
-    opened.value = cur ? [cur.group] : first ? [first] : []
+    opened.value = first ? [first] : []
   },
   { immediate: true },
 )
@@ -83,7 +95,7 @@ watch(
             class="nav-item"
             :class="{ 'is-on': activeId === it.id }"
             :title="it.cmd ?? it.argv.join(' ')"
-            @click="emit('select', it)"
+            @click="pick(it)"
           >
             {{ it.label }}<span v-if="it.write" class="w">写</span>
           </button>
@@ -102,7 +114,7 @@ watch(
             :key="it.id"
             :index="it.id"
             :title="it.cmd ?? it.argv.join(' ')"
-            @click="emit('select', it)"
+            @click="pick(it)"
           >
             <span class="it-label">{{ it.label }}</span>
             <span v-if="it.write" class="w">写</span>

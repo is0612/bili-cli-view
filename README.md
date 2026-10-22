@@ -155,8 +155,13 @@ src/
 - Element Plus 明色主题：`main.ts` 不再挂 `html.dark`，走默认 light 变量；
   底色 `#F4F6F9` / 卡片纯白，主色在 `style.css` 的 `:root` 里重排成 `#D94A76`
   （不是 `#FB7299` —— 后者配白字只有 2.9:1，过不了对比度）。
-- 布局是**后台系统式**的：左侧 252px 分组菜单（14 组用 `el-sub-menu` 折叠，
+- 布局是**后台系统式**的：左侧 268px 分组菜单（14 组用 `el-sub-menu` 折叠，
   默认只展开当前命令所在组），右侧工作区放命令面板和结果。`Ctrl K` 聚焦菜单搜索框。
+- **整页不滚动**：`html/body/#app` 都是 `height:100%; overflow:hidden`，左栏和右栏各自内部滚动。
+- **仓库放在中文路径下时要注意**（比如 `E:\工作\...`）：bili 的 HTTP 栈用 libcurl，
+  它会读不了中文路径里的 certifi 证书，报 `curl: (77) error adding trust anchors`，
+  表现是扫码登录和所有联网命令全挂。`scripts/dev.mjs` 已经自动把证书复制到 ASCII 临时目录
+  并用 `CURL_CA_BUNDLE` 指过去；如果你是手工起 uvicorn，需要自己设这个变量。
 
 ## 开机自启（让闹钟一直活着）
 

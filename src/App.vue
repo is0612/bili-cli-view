@@ -41,8 +41,6 @@ const total = computed(() => groups.value.reduce((n, g) => n + g.items.length, 0
 const groupOf = (item: CommandItem | null) =>
   item ? (groups.value.find((g) => g.items.some((i) => i.id === item.id))?.group ?? '') : ''
 
-const QUICK = ['video.watch', 'hot.rank', 'feed.inbox']
-
 async function loadMeta() {
   try {
     meta.value = await api.meta()
@@ -124,9 +122,9 @@ onUnmounted(() => window.removeEventListener('keydown', hotkey))
 
 <template>
   <el-container class="shell" direction="vertical">
-    <el-header class="topbar" height="60px">
+    <el-header class="topbar" height="64px">
       <div class="brand">
-        <div class="brand-mark"><el-icon :size="15"><VideoPlay /></el-icon></div>
+        <div class="brand-mark"><el-icon :size="16"><VideoPlay /></el-icon></div>
         <div class="brand-name">bili<span>·view</span></div>
       </div>
 
@@ -186,84 +184,91 @@ onUnmounted(() => window.removeEventListener('keydown', hotkey))
         />
 
         <section class="work">
-          <!-- ── 运行记录 ── -->
-          <template v-if="view === 'runs'">
-            <div class="page-head">
-              <div class="page-crumb">概览 <span>/</span> <b>运行记录</b></div>
-              <h1>运行记录</h1>
-              <p>最近 {{ results.length }} 次执行，最新的在最前。</p>
+          <div class="work-scroll">
+            <!-- 面包屑：只在选中命令时出现 -->
+            <div v-if="view === 'cmd' && active" class="page-crumb">
+              <span>{{ groupOf(active) }}</span>
+              <span>/</span>
+              <b>{{ active.label }}</b>
             </div>
-            <div v-if="!results.length" class="empty-block">
-              <div class="halo"><el-icon :size="22"><Clock /></el-icon></div>
-              <h4>还没跑过命令</h4>
-              <p>回到左侧菜单挑一条运行一下就有了。</p>
-            </div>
-            <div v-else class="results">
-              <ResultCard v-for="(res, i) in results" :key="i" :result="res" />
-            </div>
-          </template>
 
-          <!-- ── 命令台 ── -->
-          <template v-else>
-            <DutyPanel v-if="active?.kind === 'duty'" />
-            <DynamicPanel v-else-if="active?.kind === 'dynamic'" />
-            <SeenPanel v-else-if="active?.kind === 'seen'" />
-            <SelfCheckPanel v-else-if="active?.kind === 'selfcheck'" />
-
-            <template v-else>
-              <div v-if="!active" class="page-head">
-                <div class="page-crumb">概览 <span>/</span> <b>命令台</b></div>
-                <h1>从左边挑一条命令</h1>
-                <p>
-                  {{ groups.length }} 组 · {{ total }} 条命令，跟着 bili schema 自动更新。按 Ctrl K 可以直接搜。
-                </p>
+            <!-- ── 运行记录 ── -->
+            <template v-if="view === 'runs'">
+              <div class="page-head">
+                <div class="page-crumb">概览 <span>/</span> <b>运行记录</b></div>
+                <h1>运行记录</h1>
+                <p>最近 {{ results.length }} 次执行，最新的在最前。</p>
               </div>
-
-              <CommandRunner
-                v-if="active"
-                ref="runnerRef"
-                :item="active"
-                :initial="initialValues"
-                :autorun="autoRun"
-                @run="run"
-              />
-
-              <template v-if="results.length">
-                <div class="section-h">
-                  <h2>最新结果</h2>
-                  <span>{{ active ? `bili ${active.argv.join(' ')}` : `${results.length} 条` }}</span>
-                  <button class="more" @click="view = 'runs'">全部记录 ›</button>
-                </div>
-                <ResultCard :result="results[0]" />
-              </template>
-
-              <div v-else-if="!active" class="quick">
-                <button class="qcard" @click="quickPick('video.watch')">
-                  <span class="qi"><el-icon><VideoPlay /></el-icon></span>
-                  <b>看懂视频</b>
-                  <p>字幕、抽帧、热评，一次出全</p>
-                  <code>video.watch</code>
-                </button>
-                <button class="qcard" @click="quickPick('hot.rank')">
-                  <span class="qi"><el-icon><Clock /></el-icon></span>
-                  <b>分区排行</b>
-                  <p>按分区拉热榜，卡片直读</p>
-                  <code>hot.rank</code>
-                </button>
-                <button class="qcard" @click="quickPick('feed.inbox')">
-                  <span class="qi"><el-icon><Search /></el-icon></span>
-                  <b>收件箱</b>
-                  <p>回复、@、赞、未读数一次收齐</p>
-                  <code>feed.inbox</code>
-                </button>
+              <div v-if="!results.length" class="empty-block">
+                <div class="halo"><el-icon :size="22"><Clock /></el-icon></div>
+                <h4>还没跑过命令</h4>
+                <p>回到左侧菜单挑一条运行一下就有了。</p>
+              </div>
+              <div v-else class="results">
+                <ResultCard v-for="(res, i) in results" :key="i" :result="res" />
               </div>
             </template>
-          </template>
+
+            <!-- ── 命令台 ── -->
+            <template v-else>
+              <DutyPanel v-if="active?.kind === 'duty'" />
+              <DynamicPanel v-else-if="active?.kind === 'dynamic'" />
+              <SeenPanel v-else-if="active?.kind === 'seen'" />
+              <SelfCheckPanel v-else-if="active?.kind === 'selfcheck'" />
+
+              <template v-else>
+                <div v-if="!active" class="page-head">
+                  <div class="page-crumb">概览 <span>/</span> <b>命令台</b></div>
+                  <h1>从左边挑一条命令</h1>
+                  <p>
+                    {{ groups.length }} 组 · {{ total }} 条命令，跟着 bili schema 自动更新。按 Ctrl K 可以直接搜。
+                  </p>
+                </div>
+
+                <CommandRunner
+                  v-if="active"
+                  ref="runnerRef"
+                  :item="active"
+                  :initial="initialValues"
+                  :autorun="autoRun"
+                  @run="run"
+                />
+
+                <template v-if="results.length">
+                  <div class="section-h">
+                    <h2>最新结果</h2>
+                    <span>{{ active ? `bili ${active.argv.join(' ')}` : `${results.length} 条` }}</span>
+                    <button class="more" @click="view = 'runs'">全部记录 ›</button>
+                  </div>
+                  <ResultCard :result="results[0]" />
+                </template>
+
+                <div v-else-if="!active" class="quick">
+                  <button class="qcard" @click="quickPick('video.watch')">
+                    <span class="qi"><el-icon><VideoPlay /></el-icon></span>
+                    <b>看懂视频</b>
+                    <p>字幕、抽帧、热评，一次出全</p>
+                    <code>video.watch</code>
+                  </button>
+                  <button class="qcard" @click="quickPick('hot.rank')">
+                    <span class="qi"><el-icon><Clock /></el-icon></span>
+                    <b>分区排行</b>
+                    <p>按分区拉热榜，卡片直读</p>
+                    <code>hot.rank</code>
+                  </button>
+                  <button class="qcard" @click="quickPick('feed.inbox')">
+                    <span class="qi"><el-icon><Search /></el-icon></span>
+                    <b>收件箱</b>
+                    <p>回复、@、赞、未读数一次收齐</p>
+                    <code>feed.inbox</code>
+                  </button>
+                </div>
+              </template>
+            </template>
+          </div>
         </section>
       </div>
     </el-main>
-
-    <footer v-if="meta?.bili">bili 可执行文件 · {{ meta.bili }}</footer>
 
     <SettingsModal :open="settingsOpen" @close="settingsOpen = false" @notify="notify" />
     <LoginModal

@@ -98,7 +98,7 @@ onMounted(() => {
     <!-- 参数：横排 chip 行，不再是一整块竖排表单 -->
     <div v-if="params.length" class="runner-params">
       <div v-for="p in inputs" :key="p.key" class="fld" :class="{ 'is-wide': p.pos }">
-        <label>{{ p.label }}<i v-if="p.pos">*</i></label>
+        <label :title="p.label">{{ p.label }}<i v-if="p.pos">*</i></label>
         <el-select v-if="p.type === 'select'" v-model="values[p.key]" size="small" style="width: 100%">
           <el-option v-for="c in p.choices" :key="c" :label="c" :value="c" />
         </el-select>
@@ -112,8 +112,8 @@ onMounted(() => {
         />
       </div>
 
-      <div v-for="p in toggles" :key="p.key" class="fld">
-        <label>{{ p.label }}</label>
+      <div v-for="p in toggles" :key="p.key" class="fld is-tog">
+        <label :title="p.label">{{ p.label }}</label>
         <el-checkbox v-model="values[p.key]" size="small">启用</el-checkbox>
       </div>
 
