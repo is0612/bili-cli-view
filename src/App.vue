@@ -125,7 +125,7 @@ onUnmounted(() => window.removeEventListener('keydown', hotkey))
     <el-header class="topbar" height="64px">
       <div class="brand">
         <div class="brand-mark"><el-icon :size="16"><VideoPlay /></el-icon></div>
-        <div class="brand-name">bili<span>·view</span></div>
+        <div class="brand-name">bili<span>·desk</span></div>
       </div>
 
       <el-tag v-if="!demo" round effect="plain" type="info" size="small">v{{ meta?.version ?? '…' }}</el-tag>
