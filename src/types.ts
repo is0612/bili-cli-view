@@ -59,8 +59,26 @@ export interface SettingsState {
   api_key_set: boolean
   api_key_mask: string
   api_key_in_env: boolean
+  api_key_source?: string
   duty_home: string
+  data_home?: string
 }
+
+/** 「我的数据」：设定/判重表/报告都在这个目录里，不在程序目录里 */
+export interface ProfileInfo {
+  dir: string
+  env_override: boolean
+  exists: boolean
+  files: number
+  bytes: number
+  workspace: string
+  agents_md: string
+  has_persona: boolean
+  has_config: boolean
+  reports: number
+  legacy: string[]
+}
+
 export interface DutyConfig {
   perDay: number
   peakValley: boolean

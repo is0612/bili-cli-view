@@ -4,6 +4,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Promotion, Refresh, Setting, VideoPlay } from '@element-plus/icons-vue'
 import { api } from '../api'
 import type { DutySnapshot } from '../types'
+import { useAccount } from '../composables/useAccount'
+
+const { label: accountLabel, load: loadAccount } = useAccount()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -26,10 +29,15 @@ const mentionName = ref('')
 const commentPerRound = ref(1)
 const replyToComments = ref(false)
 const replyPerRound = ref(1)
-const zone = ref('tech')
+const zone = ref('all')
 const frames = ref(0)
 const running = ref(false)
 const ZONES = ['all', 'tech', 'game', 'knowledge', 'anime', 'music', 'dance', 'film', 'life', 'food', 'animal', 'kichiku']
+const ZONE_LABELS: Record<string, string> = {
+  all: '全站', tech: '科技', game: '游戏', knowledge: '知识', anime: '番剧',
+  music: '音乐', dance: '舞蹈', film: '影视', life: '生活', food: '美食',
+  animal: '动物', kichiku: '鬼畜',
+}
 
 const remaining = computed(() => duty.value?.state.remaining ?? 0)
 const picked = computed(() => duty.value?.state.picked ?? 0)
@@ -126,7 +134,7 @@ async function runNow() {
 async function resetQuota() {
   try {
     await ElMessageBox.confirm(
-      `今天已经挑了 ${picked.value} 条。重置会把今天的报告改名归档，额度归零，判重表不动 —— 她可以重新挑。`,
+      `今天已经挑了 ${picked.value} 条。重置会把今天的报告改名归档，额度归零，判重表不动 —— 可以重新挑。`,
       '重置今日额度',
       { confirmButtonText: '重置', cancelButtonText: '算了', type: 'warning' },
     )
@@ -151,6 +159,7 @@ async function resetQuota() {
 }
 
 onMounted(async () => {
+  void loadAccount()
   await load()
   void loadReport()
 })
@@ -167,7 +176,7 @@ onMounted(async () => {
             今天 {{ picked }} / {{ perDay }}{{ remaining > 0 ? ` · 还能挑 ${remaining} 条` : ' · 额度已满' }}
           </el-tag>
         </div>
-        <div class="cmd-chip" style="margin-top: 7px">{{ dmMode === 'only' ? '鲸鱼娘每天按谷时自己跑，只发私信' : dmMode === 'both' ? '鲸鱼娘每天按谷时自己跑：私信 + 公开评论' : '鲸鱼娘每天按谷时自己跑，不对外发任何东西' }}</div>
+        <div class="cmd-chip" style="margin-top: 7px">{{ dmMode === 'only' ? '值班助手每天按谷时自己跑，只发私信' : dmMode === 'both' ? '值班助手每天按谷时自己跑：私信 + 公开评论' : '值班助手每天按谷时自己跑，不对外发任何东西' }}</div>
       </div>
       <el-button type="primary" :icon="Promotion" :loading="running" @click="runNow">
         {{ running ? '跑一轮中…' : '现在跑一轮' }}
@@ -214,7 +223,7 @@ onMounted(async () => {
         <el-col :xs="24" :sm="12" :md="8" :lg="6">
           <el-form-item label="热榜分区">
             <el-select v-model="zone" style="width: 100%" filterable allow-create>
-              <el-option v-for="z in ZONES" :key="z" :label="z" :value="z" />
+              <el-option v-for="z in ZONES" :key="z" :label="ZONE_LABELS[z] ?? z" :value="z" />
             </el-select>
           </el-form-item>
         </el-col>
@@ -260,7 +269,7 @@ onMounted(async () => {
         </el-col>
 
         <el-col :xs="24" :sm="12" :md="8" :lg="6">
-          <el-form-item label="回复别人在她评论下的留言">
+          <el-form-item label="回复别人在你评论下的留言">
             <el-switch v-model="replyToComments" />
           </el-form-item>
         </el-col>
@@ -278,7 +287,7 @@ onMounted(async () => {
         </el-col>
 
         <el-col :span="24">
-          <el-form-item label="关注关键词（回车添加，搜这些方向）">
+          <el-form-item label="关注关键词（回车添加；留空也能跑，那就只看热榜和推荐流）">
             <el-select
               v-model="keywords"
               multiple
@@ -286,7 +295,7 @@ onMounted(async () => {
               allow-create
               default-first-option
               :reserve-keyword="false"
-              placeholder="原神 / 星穹铁道 / 绝区零 …"
+              placeholder="输入你想追的方向，回车添加（例：游戏 / 科技 / 纪录片）"
               style="width: 100%"
             />
           </el-form-item>
@@ -305,7 +314,7 @@ onMounted(async () => {
       :closable="false"
       show-icon
       style="margin-top: 14px"
-      title="公开评论会真的发出去（挂在北海大肥鱼那个号上）。「@ 谁」留空就是纯自己评论，不通知任何人。"
+      :title="`公开评论会真的发出去（以${accountLabel}的身份）。「@ 谁」留空就是纯自己评论，不通知任何人。`"
     />
 
     <el-collapse style="margin-top: 16px" @change="(v: any) => v.includes('report') && loadReport()">

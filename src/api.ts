@@ -1,4 +1,13 @@
-import type { BiliUser, CommandGroup, DutySnapshot, Meta, RunResult, SeenPayload, SettingsState } from './types'
+import type {
+  BiliUser,
+  CommandGroup,
+  DutySnapshot,
+  Meta,
+  ProfileInfo,
+  RunResult,
+  SeenPayload,
+  SettingsState,
+} from './types'
 
 async function http<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
@@ -54,6 +63,28 @@ export const api = {
     }),
 
   duty: () => http<DutySnapshot>('/api/agent'),
+
+  // ── 我的数据（备份 / 换人） ──────────────────────────────
+  profile: () => http<ProfileInfo>('/api/profile'),
+
+  exportUrl: (secrets: boolean) => `/api/profile/export?secrets=${secrets ? 1 : 0}`,
+
+  importProfile: async (file: File) => {
+    const res = await fetch('/api/profile/import', { method: 'POST', body: file })
+    const body = (await res.json().catch(() => null)) as
+      | { detail?: string; notes?: string[]; profile?: ProfileInfo }
+      | null
+    if (!res.ok) throw new Error(body?.detail || `HTTP ${res.status}`)
+    return body as { notes: string[]; profile: ProfileInfo }
+  },
+
+  resetProfile: () =>
+    http<{ ok: boolean; notes: string[]; profile: ProfileInfo }>('/api/profile/reset', {
+      method: 'POST',
+    }),
+
+  openProfile: () =>
+    http<{ ok: boolean }>('/api/profile/open', { method: 'POST' }),
 
   selfcheck: () =>
     http<{ ok: boolean; version: string | null; advice: string; checks: { name: string; ok: boolean; detail: string; hint: string }[] }>(
