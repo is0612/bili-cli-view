@@ -6,7 +6,7 @@ import os
 import shutil
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]          # bili-cli-view/
+PROJECT_ROOT = Path(__file__).resolve().parents[2]          # bili-desk/
 DSH_HOME = Path(os.environ.get("DSH_HOME") or (Path.home() / ".dsh"))
 DUTY_HOME = DSH_HOME / "bili-duty"
 CFG_JSON = DUTY_HOME / "config.json"

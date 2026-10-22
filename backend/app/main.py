@@ -30,7 +30,7 @@ async def lifespan(_app: FastAPI):
         task.cancel()
 
 
-app = FastAPI(title="bili-cli-view", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="bili-desk", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

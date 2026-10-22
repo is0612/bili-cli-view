@@ -1,5 +1,5 @@
 # Start the panel backend at logon. Idempotent: if it is already up, do nothing.
-# Called by the scheduled task "bili-cli-view" (hidden window).
+# Called by the scheduled task "bili-desk" (hidden window).
 $root = Split-Path $PSScriptRoot -Parent
 $logDir = Join-Path $root 'runtime'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null

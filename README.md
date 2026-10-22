@@ -1,4 +1,4 @@
-# bili-cli-view
+# bili-desk
 
 bili-cli 的图形控制台：**Vite + Vue 3 + TypeScript + Element Plus** 前端，**FastAPI** 后端。
 
@@ -165,11 +165,11 @@ src/
 - 注册任务（把 `<仓库路径>` 换成本机路径）：
 
 ```powershell
-schtasks /Create /TN "bili-cli-view" /SC ONLOGON /DELAY 0000:30 /RL LIMITED /F `
+schtasks /Create /TN "bili-desk" /SC ONLOGON /DELAY 0000:30 /RL LIMITED /F `
   /TR "\"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe\" -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"<仓库路径>\scripts\start-panel.ps1\""
 ```
 
-删掉自启：`schtasks /Delete /TN "bili-cli-view" /F`。
+删掉自启：`schtasks /Delete /TN "bili-desk" /F`。
 
 > ⚠️ 这两个 `.ps1` 的注释刻意写成英文：Windows PowerShell 5.1 读 **UTF-8 无 BOM** 的脚本会把中文读成乱码，
 > 曾因此解析失败（`Unexpected token`）。要加中文注释就存成带 BOM 或 UTF-16。

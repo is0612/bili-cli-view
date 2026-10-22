@@ -1,2 +1,2 @@
 # -*- coding: utf-8 -*-
-"""bili-cli-view 后端包。"""
+"""bili-desk 后端包。"""
