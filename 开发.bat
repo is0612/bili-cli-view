@@ -13,11 +13,6 @@ if errorlevel 1 pause
 exit /b 0
 
 :nonode
-echo.
-echo   Node.js is required (one-time install).
-echo   Opening the download page ...
-echo.
-start "" "https://nodejs.org/zh-cn/download"
-echo   Install it with the default options, then run this file again.
-pause
+rem Chinese message + download link are printed by the .ps1 (UTF-8 with BOM).
+powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\no-node.ps1"
 exit /b 1

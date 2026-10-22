@@ -92,10 +92,10 @@ function yarnRunner() {
 }
 
 /**
- * 选包管理器：本项目用 yarn（只有 yarn.lock），别人的电脑上没有就**先装一份**，
- * 装不上再退回 npm（加 --no-package-lock，免得又生成 package-lock.json）。
+ * 选包管理器。对使用者来说这一步是透明的：他不装 yarn、也不敲命令。
  *
- * 顺序：本机已有的 yarn → npm i -g yarn@1.22.22 → npx 临时跑 yarn → npm。
+ * 顺序：本机已有的 yarn → npx 临时跑同一版本（不落地）→ npm（加 --no-package-lock）。
+ * 不做 `npm i -g yarn`：装依赖本来就要联网，npx 一样能用，还少一个「没权限装全局」的失败点。
  */
 export async function resolvePackageManager() {
   if (pkgExec) return
@@ -103,28 +103,17 @@ export async function resolvePackageManager() {
   pkgExec = yarnRunner()
   if (pkgExec) return
 
-  step('这台机器没装 yarn，先替你装一份（装不上会自动退回 npm，不影响使用）…')
-  try {
-    await npmRun(['install', '-g', 'yarn@1.22.22'])
-  } catch { /* 权限/网络失败都往下走 */ }
-
-  // npm 全局 bin 不一定在 PATH 里（要重开终端才刷新），所以按 npm prefix 直接找
-  pkgExec = yarnRunner()
-  if (pkgExec) {
-    say('   yarn 装好了')
-    return
-  }
-
-  // 实在装不上：用 npx 临时跑同一版本的 yarn，仍然按 yarn.lock 装
+  // 没有 yarn：用 npx 临时拉一份同样的 1.22.22，仍然严格按 yarn.lock 装
+  step('准备前端工具（第一次会多花十几秒，之后不再下载）…')
   try {
     await npmRun(['exec', '--yes', 'yarn@1.22.22', '--', '--version'])
-    say('   改用 npx 临时跑 yarn（不安装到全局）')
+    say('   前端工具已就绪')
     pkgExec = (args, opts = {}) =>
       run(process.execPath, [NPM_CLI, 'exec', '--yes', 'yarn@1.22.22', '--', ...args], opts)
     return
-  } catch { /* 继续退到 npm */ }
+  } catch { /* 没网/没 npm 才走到这里 */ }
 
-  say('   装不上 yarn（可能没权限或没网），这次用 npm 跑，装完一样能用。')
+  say('   换一种方式安装前端依赖（不影响使用）…')
   pkgExec = null
 }
 
@@ -260,7 +249,14 @@ export async function ensureFrontendDeps() {
     )
   }
   await resolvePackageManager()
-  await pkgRun(['install'])
+  try {
+    await pkgRun(['install'])
+  } catch (err) {
+    throw new Error(
+      `装前端依赖失败：${err.message}\n` +
+      '多半是网络/代理问题。检查网络后重新双击「启动.bat」即可（已经装好的部分不会重来）。'
+    )
+  }
   return true
 }
 
