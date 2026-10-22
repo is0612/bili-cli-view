@@ -76,6 +76,8 @@ export interface DutyConfig {
   commentPerRound: number
   replyToComments: boolean
   replyPerRound: number
+  zone: string
+  frames: number
 }
 
 export interface DutyState {

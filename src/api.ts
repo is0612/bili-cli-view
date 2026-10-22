@@ -53,21 +53,26 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  duty: () => http<DutySnapshot>('/api/duty'),
+  duty: () => http<DutySnapshot>('/api/agent'),
 
   saveDuty: (patch: Partial<DutySnapshot['config']> & { keywords?: string[] }) =>
-    http<{ ok: boolean; notes: string[]; duty: DutySnapshot }>('/api/duty', {
+    http<{ ok: boolean; notes: string[]; agent: DutySnapshot }>('/api/agent/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch),
     }),
 
   resetDuty: () =>
-    http<{ ok: boolean; archived: string | null; state: DutySnapshot }>('/api/duty/reset', {
+    http<{ ok: boolean; archived: string | null; state: DutySnapshot }>('/api/agent/reset', {
       method: 'POST',
     }),
 
-  seen: () => http<SeenPayload>('/api/duty/seen'),
+  runAgent: () =>
+    http<{ ok: boolean; code: number; log: string; seconds: number; picked: number }>('/api/agent/run', {
+      method: 'POST',
+    }),
+
+  seen: () => http<SeenPayload>('/api/agent/seen'),
 
   postDynamic: (body: { text: string; images: string[]; at: string[]; dry_run: boolean }) =>
     http<RunResult>('/api/duty/dynamic', {
@@ -78,7 +83,7 @@ export const api = {
 
   dutyReport: () =>
     http<{ day: string; path: string; exists: boolean; picks: number; text: string }>(
-      '/api/duty/report',
+      '/api/agent/report',
     ),
 
   coverUrl: (bvid: string) => `/api/cover?bvid=${encodeURIComponent(bvid)}`,

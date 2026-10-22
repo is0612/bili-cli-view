@@ -73,8 +73,8 @@ onMounted(load)
           <div class="muted mono">{{ row.bvid }}</div>
         </template>
       </el-table-column>
-      <el-table-column prop="author" label="UP 主" width="150" show-overflow-tooltip />
-      <el-table-column label="结果" width="200">
+      <el-table-column prop="author" label="UP 主" width="140" show-overflow-tooltip />
+      <el-table-column label="结果" width="280" show-overflow-tooltip>
         <template #default="{ row }">
           <el-tag
             :type="row.result.startsWith('收') ? 'success' : 'info'"

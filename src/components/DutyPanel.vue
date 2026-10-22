@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Setting, VideoPlay } from '@element-plus/icons-vue'
+import { Promotion, Refresh, Setting, VideoPlay } from '@element-plus/icons-vue'
 import { api } from '../api'
 import type { DutySnapshot } from '../types'
 
@@ -26,6 +26,10 @@ const mentionName = ref('')
 const commentPerRound = ref(1)
 const replyToComments = ref(false)
 const replyPerRound = ref(1)
+const zone = ref('tech')
+const frames = ref(0)
+const running = ref(false)
+const ZONES = ['all', 'tech', 'game', 'knowledge', 'anime', 'music', 'dance', 'film', 'life', 'food', 'animal', 'kichiku']
 
 const remaining = computed(() => duty.value?.state.remaining ?? 0)
 const picked = computed(() => duty.value?.state.picked ?? 0)
@@ -46,6 +50,8 @@ function fill(snap: DutySnapshot) {
   commentPerRound.value = Number(c.commentPerRound ?? 1)
   replyToComments.value = Boolean(c.replyToComments)
   replyPerRound.value = Number(c.replyPerRound ?? 1)
+  zone.value = String(c.zone ?? 'tech')
+  frames.value = Number(c.frames ?? 0)
 }
 
 async function load() {
@@ -86,13 +92,34 @@ async function save() {
       commentPerRound: commentPerRound.value,
       replyToComments: replyToComments.value,
       replyPerRound: replyPerRound.value,
+      zone: zone.value,
+      frames: frames.value,
     })
-    fill(res.duty)
+    fill(res.agent)
     ElMessage.success({ message: '已保存，下一轮按新设置跑', grouping: true })
   } catch (err) {
     ElMessage.error({ message: `保存失败：${(err as Error).message}`, grouping: true })
   } finally {
     saving.value = false
+  }
+}
+
+async function runNow() {
+  running.value = true
+  try {
+    const res = await api.runAgent()
+    ElMessage({
+      type: res.ok ? 'success' : 'error',
+      message: res.ok ? `跑完了（${res.seconds}s），今天已有 ${res.picked} 条` : '这一轮没跑成，去日志里看',
+      grouping: true,
+      duration: 4000,
+    })
+    await load()
+    await loadReport()
+  } catch (err) {
+    ElMessage.error({ message: `执行失败：${(err as Error).message}`, grouping: true })
+  } finally {
+    running.value = false
   }
 }
 
@@ -142,6 +169,9 @@ onMounted(async () => {
         </div>
         <div class="cmd-chip" style="margin-top: 7px">{{ dmMode === 'only' ? '鲸鱼娘每天按谷时自己跑，只发私信' : dmMode === 'both' ? '鲸鱼娘每天按谷时自己跑：私信 + 公开评论' : '鲸鱼娘每天按谷时自己跑，不对外发任何东西' }}</div>
       </div>
+      <el-button type="primary" :icon="Promotion" :loading="running" @click="runNow">
+        {{ running ? '跑一轮中…' : '现在跑一轮' }}
+      </el-button>
       <el-button :icon="Refresh" text @click="load">刷新</el-button>
     </div>
 
@@ -182,8 +212,16 @@ onMounted(async () => {
         </el-col>
 
         <el-col :xs="24" :sm="12" :md="8" :lg="6">
-          <el-form-item label="私信发给谁（UID）">
-            <el-input-number v-model="dmUid" :min="0" :controls="false" style="width: 100%" placeholder="你的 UID" />
+          <el-form-item label="热榜分区">
+            <el-select v-model="zone" style="width: 100%" filterable allow-create>
+              <el-option v-for="z in ZONES" :key="z" :label="z" :value="z" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+
+        <el-col :xs="24" :sm="12" :md="8" :lg="6">
+          <el-form-item label="每条视频抽几帧">
+            <el-input-number v-model="frames" :min="0" :max="30" controls-position="right" style="width: 100%" />
           </el-form-item>
         </el-col>
 

@@ -2,6 +2,7 @@
 """FastAPI 后端：把 bili CLI 变成一组 HTTP 接口，供 Vue 前端调用。"""
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from . import duty, media, settings
+from . import agent, duty, media, settings
 from .catalog import CATALOG
 from .paths import CREDS_YAML, PROJECT_ROOT, QR_PATH, bili_bin, ensure_dirs
 from .runner import bili_json, run_bili
@@ -22,7 +23,11 @@ from .runner import bili_json, run_bili
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     ensure_dirs()
-    yield
+    task = asyncio.create_task(agent.scheduler_loop())   # 谷时定时器
+    try:
+        yield
+    finally:
+        task.cancel()
 
 
 app = FastAPI(title="bili-cli-view", version="0.1.0", lifespan=lifespan)
@@ -122,7 +127,41 @@ async def cancel_login() -> Any:
     return {"moved": moved, "status": status}
 
 
-# ───────────────────────── 刷B站值班 ─────────────────────────
+# ───────────────────────── 自动值班（bili-cli 版） ─────────────────────────
+
+
+@app.get("/api/agent")
+async def get_agent() -> Any:
+    return agent.status()
+
+
+@app.post("/api/agent/save")
+async def post_agent_save(body: dict[str, Any]) -> Any:
+    notes = agent.save(body)
+    return {"ok": True, "notes": notes, "agent": agent.status()}
+
+
+@app.post("/api/agent/reset")
+async def post_agent_reset() -> Any:
+    return {"ok": True, **agent.reset_today()}
+
+
+@app.post("/api/agent/run")
+async def post_agent_run() -> Any:
+    return await agent.run_round("manual")
+
+
+@app.get("/api/agent/report")
+async def get_agent_report(day: str | None = None) -> Any:
+    return agent.report(day)
+
+
+@app.get("/api/agent/seen")
+async def get_agent_seen() -> Any:
+    return agent.seen()
+
+
+# ───────────────────────── 刷B站值班（旧插件） ─────────────────────────
 
 
 @app.get("/api/duty")

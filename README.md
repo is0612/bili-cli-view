@@ -13,6 +13,35 @@ bili-cli 的图形控制台：**Vite + Vue 3 + TypeScript + Element Plus** 前�
 
 > 截图里的账号信息已隐去（`?demo=1` 会隐藏顶栏的版本/账号/主人三个 chip）。
 
+## 自动值班（bili-cli 版）
+
+面板里有一组「刷B站」：
+
+| 页面 | 干什么 |
+| --- | --- |
+| **值班设置** | 每天几条、谷时窗口、热榜分区、抽帧数、关键词、评论开关、私信/评论投递、**现在跑一轮**、重置今日额度 |
+| **发动态** | 写正文 / 配图 / @ 人，默认 `--dry-run` 预览，确认了才真发 |
+| **她看过什么** | 读 `runtime/duty/seen.md`：收了几条、跳过几条、跳过理由 |
+
+原理很简单：**bili-cli 是手，headless 会话是脑子，面板后端是闹钟**。
+
+```
+APScheduler（谷时窗口，每 30 秒看一眼）
+  └─ 起一个 headless dsh 会话（cwd=仓库，自动带上 AGENTS.md 人设）
+       └─ 交给它 duty/duty.md 的章程 + 本轮设置
+            └─ 它用 `bili feed recommend` / `bili video watch` / `bili comment post` / `bili dm send` 干活
+                 └─ 写 runtime/duty/out/<日期>.md 和 seen.md
+```
+
+- 只有一套工具（`bili`）、一份凭证（`%APPDATA%\bili-cli\`）；
+- 每次跑的日志在 `runtime/duty/logs/round-*.log`，面板能看到报告原文；
+- headless 会话用 `DSH_PERMISSION_MODE=danger-full-access` 起 —— 因为 `workspace-write` 沙箱里
+  pwsh 会以 `0xC0000142` 退出，跑不了 `bili`。这是本机实测出来的硬限制。
+
+![值班设置](docs/screenshot-duty.png)
+
+![她看过什么](docs/screenshot-seen.png)
+
 ## 换个人用 / 多台机器
 
 **登录态不跟着代码走**，每个机器各自扫码：
