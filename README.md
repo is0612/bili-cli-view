@@ -1,13 +1,17 @@
 # bili-cli-view
 
-bili-cli 的图形控制台：**Vite + Vue 3 + TypeScript** 前端，**FastAPI** 后端。
+bili-cli 的图形控制台：**Vite + Vue 3 + TypeScript + Element Plus** 前端，**FastAPI** 后端。
 
-后端不做任何业务逻辑，只把 `bili <命令>` 包成一组 HTTP 接口；前端把返回的那段 JSON
-渲染成卡片（视频、字幕、评论、UP 主数据、错误提示都各自有对应的样子）。
+后端不做业务逻辑，只把 `bili <命令>` 包成一组 HTTP 接口；前端用 Element Plus 的表单、弹窗、消息、
+折叠面板把返回的 JSON 渲染成卡片和图谱。
 
-![看懂视频](docs/screenshot-watch.png)
+![首页](docs/screenshot-home.png)
 
-![设置](docs/screenshot-settings.png)
+![推荐列表](docs/screenshot-list.png)
+
+| 看懂视频 | 设置 |
+| --- | --- |
+| ![看懂视频](docs/screenshot-watch.png) | ![设置](docs/screenshot-settings.png) |
 
 ## 为什么要有后端
 
@@ -32,7 +36,7 @@ npm install
 npm run dev            # http://127.0.0.1:5199 ，/api 自动代理到 8811
 ```
 
-生产模式：`npm run build` 之后 `dist/` 会由 FastAPI 直接托管（单端口 8811）。
+生产模式：`npm run build` 之后 `dist/` 由 FastAPI 直接托管（单端口 8811）。
 
 ## 目录
 
@@ -45,17 +49,19 @@ backend/app/
   media.py     封面代理 + 本地图片白名单
   paths.py     路径与 bili 可执行文件定位
 src/
-  App.vue              壳：顶栏 + 侧栏 + 结果区
+  App.vue              壳：顶栏 + 侧栏 + 结果区（ElContainer/ElHeader/ElMain）
   components/
-    SidebarNav.vue     命令导航
-    CommandRunner.vue  命令表单 + 命令行预览 + dry-run
-    ResultCard.vue     单次执行结果
+    SidebarNav.vue     ElMenu + 搜索过滤
+    CommandRunner.vue  ElForm/ElInput/ElSelect/ElCheckbox + 命令行预览 + dry-run
+    ResultCard.vue     ElCard + ElTag + ElCollapse（原始 JSON）
     NodeView.vue       递归渲染器（对象/数组/图片/长文本）
-    VideoCard.vue      视频卡片（封面走 /api/cover）
-    WatchView.vue      「看懂视频」专用排版
-    SettingsModal.vue  人设 / 工作区 / Key
-    LoginModal.vue     扫码登录
-  utils/format.ts      取值与格式化
+    VideoCard.vue      ElCard 封面卡（封面走 /api/cover）
+    WatchView.vue      ElCollapse/ElImage，看懂视频专用排版
+    SettingsModal.vue  ElDialog + ElForm（人设 / 工作区 / Key）
+    LoginModal.vue     ElDialog + ElImage（扫码登录）
+    ErrorBoundary.vue  渲染兜底，出错不白屏
+  composables/useToast.ts   ElMessage 封装
+  utils/format.ts           取值与格式化
 ```
 
 ## 接口
@@ -73,8 +79,15 @@ src/
 | GET | `/api/proxy?u=` | 任意图片代理 |
 | GET | `/api/img?p=` | 本地图片（白名单目录内） |
 
+## 深链
+
+- `?cmd=video.watch&video_id=BV181Hh6bE27&run=1` —— 直接选中命令并执行
+- `?settings=1` / `?login=1` —— 打开对应弹层
+
 ## 注意
 
 - 写操作（点赞/收藏/投币/评论/私信/动态）默认自动加 `--dry-run`，要真发得手动取消勾选。
 - `bili` 的位置按 `BILI_BIN` → `PATH` → `~/.local/bin/bili.exe` 依次找，换机器不用改代码。
 - 凭证、二维码这些运行时文件都在 `runtime/` 和 DSH 自己的目录里，**不要提交到仓库**。
+- Element Plus 整站暗色：`main.ts` 里挂了 `html.dark` + `theme-chalk/dark/css-vars.css`，
+  主色在 `style.css` 里按 B站粉重排了 `--el-color-primary` 系列变量。

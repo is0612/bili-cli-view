@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
+import { Refresh, Setting, MagicStick, VideoPlay } from '@element-plus/icons-vue'
 import { api } from './api'
 import CommandRunner from './components/CommandRunner.vue'
 import LoginModal from './components/LoginModal.vue'
 import ResultCard from './components/ResultCard.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import SidebarNav from './components/SidebarNav.vue'
+import { useToast } from './composables/useToast'
 import type { CommandGroup, CommandItem, Meta, RunResult } from './types'
 
 const groups = ref<CommandGroup[]>([])
@@ -20,16 +22,10 @@ const runnerRef = ref<InstanceType<typeof CommandRunner> | null>(null)
 const initialValues = ref<Record<string, string>>({})
 const autoRun = ref(false)
 
-const toast = ref<{ text: string; error: boolean } | null>(null)
-let toastTimer: ReturnType<typeof setTimeout> | undefined
-
-function notify(text: string, error = false) {
-  toast.value = { text, error }
-  clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => (toast.value = null), 4000)
-}
+const { notify } = useToast()
 
 const loggedIn = computed(() => Boolean(meta.value?.auth.ok && meta.value?.auth.user))
+const level = computed(() => meta.value?.auth.user?.level ?? '?')
 
 async function loadMeta() {
   try {
@@ -41,6 +37,7 @@ async function loadMeta() {
 
 async function run(argv: string[]) {
   busy.value = true
+  runnerRef.value?.setBusy(true)
   try {
     const res = await api.run(argv)
     results.value.unshift(res)
@@ -50,7 +47,14 @@ async function run(argv: string[]) {
     notify(`执行失败：${(err as Error).message}`, true)
   } finally {
     busy.value = false
+    runnerRef.value?.setBusy(false)
   }
+}
+
+function choose(item: CommandItem) {
+  initialValues.value = {}
+  autoRun.value = false
+  active.value = item
 }
 
 onMounted(async () => {
@@ -62,7 +66,6 @@ onMounted(async () => {
   }
   void loadMeta()
 
-  // 深链：?cmd=video.watch&video_id=BV…&run=1 ；?settings=1 / ?login=1 直接开弹层
   const qs = new URLSearchParams(location.search)
   if (qs.get('settings') === '1') settingsOpen.value = true
   if (qs.get('login') === '1') loginOpen.value = true
@@ -83,51 +86,67 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="app">
-    <header class="topbar">
-      <div class="logo">bili<b>·</b>view</div>
-      <span class="chip">{{ meta?.version ? `bili ${meta.version}` : '…' }}</span>
-      <span class="chip" :class="loggedIn ? 'ok' : 'bad'">
-        {{ loggedIn ? `● ${meta?.auth.user?.name}（Lv${meta?.auth.user?.level ?? '?'}）` : '○ 未登录' }}
-      </span>
-      <span v-if="meta?.owner" class="chip">主人：{{ meta.owner.name }}</span>
-      <span class="spacer" />
-      <button class="btn" @click="settingsOpen = true">⚙ 设置</button>
-      <button class="btn" @click="loginOpen = true">{{ loggedIn ? '重新扫码' : '扫码登录' }}</button>
-      <button class="btn" @click="loadMeta">刷新状态</button>
-    </header>
+  <el-container class="shell" direction="vertical">
+    <el-header class="topbar" height="64px">
+      <div class="brand">
+        <div class="brand-mark"><el-icon :size="16"><VideoPlay /></el-icon></div>
+        <div class="brand-name">bili<span>·view</span></div>
+      </div>
 
-    <div class="layout">
-      <SidebarNav
-        :groups="groups"
-        :active-id="active?.id ?? null"
-        @select="(item) => { initialValues = {}; autoRun = false; active = item }"
-      />
-
-      <section class="work">
-        <CommandRunner
-          v-if="active"
-          ref="runnerRef"
-          :item="active"
-          :initial="initialValues"
-          :autorun="autoRun"
-          @run="run"
+      <el-tag round effect="plain" type="info" size="default">v{{ meta?.version ?? '…' }}</el-tag>
+      <el-tag round :type="loggedIn ? 'success' : 'danger'" effect="plain">
+        <span
+          v-if="loggedIn"
+          style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 6px"
         />
-        <div v-else class="card">
-          <h3>选择左边任意一条命令</h3>
-          <div class="muted">
-            80+ 条命令里的常用集。结果渲染成卡片；写操作默认带
-            <code>--dry-run</code> 预览。
+        {{ loggedIn ? `${meta?.auth.user?.name} · Lv${level}` : '未登录' }}
+      </el-tag>
+      <el-tag v-if="meta?.owner" round effect="plain" type="info">主人 · {{ meta.owner.name }}</el-tag>
+
+      <span class="spacer" />
+
+      <el-button :icon="Setting" @click="settingsOpen = true">设置</el-button>
+      <el-button :icon="MagicStick" @click="loginOpen = true">
+        {{ loggedIn ? '重新扫码' : '扫码登录' }}
+      </el-button>
+      <el-button :icon="Refresh" @click="loadMeta">刷新</el-button>
+    </el-header>
+
+    <el-main class="main">
+      <div class="layout">
+        <SidebarNav :groups="groups" :active-id="active?.id ?? null" @select="choose" />
+
+        <section class="work">
+          <CommandRunner
+            v-if="active"
+            ref="runnerRef"
+            :item="active"
+            :initial="initialValues"
+            :autorun="autoRun"
+            @run="run"
+          />
+
+          <div v-if="!results.length" class="empty-block">
+            <div class="halo"><el-icon :size="24"><MagicStick /></el-icon></div>
+            <h4>{{ active ? '执行一下试试' : '从左边挑一条命令' }}</h4>
+            <p>
+              视频、字幕、热评、UP 主数据都会渲染成卡片；写操作默认带 --dry-run 预览，不会真的发出去。
+            </p>
+            <div style="display: flex; gap: 7px; flex-wrap: wrap; justify-content: center">
+              <el-tag effect="plain" size="small">video.watch 看懂视频</el-tag>
+              <el-tag effect="plain" size="small">hot.rank 分区排行</el-tag>
+              <el-tag effect="plain" size="small">feed.inbox 收件箱</el-tag>
+            </div>
           </div>
-        </div>
 
-        <div class="results">
-          <ResultCard v-for="(res, i) in results" :key="i" :result="res" />
-        </div>
-      </section>
-    </div>
+          <div v-else class="results" style="display: flex; flex-direction: column; gap: 14px">
+            <ResultCard v-for="(res, i) in results" :key="i" :result="res" />
+          </div>
+        </section>
+      </div>
+    </el-main>
 
-    <footer v-if="meta?.bili">bili 可执行文件：{{ meta.bili }}</footer>
+    <footer v-if="meta?.bili">bili 可执行文件 · {{ meta.bili }}</footer>
 
     <SettingsModal :open="settingsOpen" @close="settingsOpen = false" @notify="notify" />
     <LoginModal
@@ -137,7 +156,5 @@ onMounted(async () => {
       @notify="notify"
       @refresh="loadMeta"
     />
-
-    <div v-if="toast" class="toast" :class="{ error: toast.error }">{{ toast.text }}</div>
-  </div>
+  </el-container>
 </template>

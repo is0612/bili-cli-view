@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { TopRight } from '@element-plus/icons-vue'
 import { fmt, fmtDur, imgSrc } from '../utils/format'
 
 interface Comment {
@@ -22,54 +23,62 @@ const sheet = computed(() =>
 
 <template>
   <div>
-    <div class="kv">
-      <div class="k">标题</div>
-      <div class="v">{{ node.title }}</div>
-      <div class="k">UP</div>
-      <div class="v">{{ owner }}</div>
-      <div class="k">时长</div>
-      <div class="v">{{ fmtDur(node.duration) }}</div>
-      <div v-if="stat" class="k">数据</div>
-      <div v-if="stat" class="v">
-        ▶{{ fmt(stat.view) }} 👍{{ fmt(stat.like) }} 💬{{ fmt(stat.danmaku) }} ↩{{ fmt(stat.reply ?? 0) }}
+    <div style="display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap">
+      <div style="min-width: 0; flex: 1">
+        <div class="watch-title">{{ node.title }}</div>
+        <div class="watch-meta">
+          <span v-if="owner">{{ owner }}</span>
+          <span v-if="node.duration">· {{ fmtDur(node.duration) }}</span>
+          <span v-if="stat">
+            · ▶ {{ fmt(stat.view) }} · 👍 {{ fmt(stat.like) }} · 💬 {{ fmt(stat.danmaku) }} · ↩
+            {{ fmt(stat.reply ?? 0) }}
+          </span>
+        </div>
       </div>
+      <el-button v-if="node.url" tag="a" :href="node.url" target="_blank" size="small">
+        打开 <el-icon style="margin-left: 4px"><TopRight /></el-icon>
+      </el-button>
     </div>
 
-    <div v-if="tags.length" style="margin-top: 10px">
-      <span v-for="tag in tags" :key="tag" class="tag">{{ tag }}</span>
+    <div v-if="tags.length" style="margin-top: 12px">
+      <el-tag
+        v-for="tag in tags"
+        :key="tag"
+        size="small"
+        effect="plain"
+        style="margin: 0 6px 6px 0"
+        >{{ tag }}</el-tag
+      >
     </div>
 
-    <div v-if="node.ai_summary" style="margin-top: 12px">
-      <div class="muted">AI 总结</div>
-      <div>{{ node.ai_summary }}</div>
-    </div>
+    <div v-if="node.ai_summary" class="summary-block">{{ node.ai_summary }}</div>
 
-    <details v-if="transcript?.text" style="margin-top: 10px">
-      <summary>
-        字幕全文（{{ transcript.text.length }} 字，来源 {{ transcript.source || '未知' }}）
-      </summary>
-      <pre>{{ transcript.text }}</pre>
-    </details>
+    <el-collapse v-if="transcript?.text || comments.length" style="margin-top: 14px">
+      <el-collapse-item
+        v-if="transcript?.text"
+        :title="`字幕全文 · ${transcript.text.length} 字（${transcript.source || ''}）`"
+        name="transcript"
+      >
+        <pre class="code">{{ transcript.text }}</pre>
+      </el-collapse-item>
+      <el-collapse-item v-if="comments.length" :title="`热评 · ${comments.length} 条`" name="comments">
+        <div class="kv">
+          <template v-for="(c, i) in comments" :key="i">
+            <div class="k">{{ c.user }}</div>
+            <div class="v">
+              {{ c.content }}<span v-if="c.like != null" class="muted"> ❤{{ c.like }}</span>
+            </div>
+          </template>
+        </div>
+      </el-collapse-item>
+    </el-collapse>
 
-    <img
+    <el-image
       v-if="sheet"
       :src="sheet"
-      alt=""
-      style="max-width: 100%; margin-top: 12px; border-radius: 10px"
+      :preview-src-list="[sheet]"
+      fit="cover"
+      style="width: 100%; aspect-ratio: 16 / 9; margin-top: 14px; border-radius: 14px; border: 1px solid var(--line)"
     />
-
-    <details v-if="comments.length" style="margin-top: 10px">
-      <summary>热评（{{ comments.length }} 条）</summary>
-      <div class="kv">
-        <template v-for="(c, i) in comments" :key="i">
-          <div class="k">{{ c.user }}</div>
-          <div class="v">{{ c.content }}<span v-if="c.like != null">  ❤{{ c.like }}</span></div>
-        </template>
-      </div>
-    </details>
-
-    <div v-if="node.url" style="margin-top: 12px">
-      <a :href="node.url" target="_blank" rel="noreferrer">{{ node.url }}</a>
-    </div>
   </div>
 </template>

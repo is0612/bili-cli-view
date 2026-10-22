@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { Iphone } from '@element-plus/icons-vue'
 import { api } from '../api'
 
 const props = defineProps<{ open: boolean; loggedIn: boolean }>()
@@ -49,8 +50,7 @@ async function check() {
 async function cancel() {
   try {
     const res = await api.cancelLogin()
-    const ok = res.status?.ok
-    emit('notify', ok ? '已恢复到原登录状态' : '已清除待扫码状态')
+    emit('notify', res.status?.ok ? '已恢复到原登录状态' : '已清除待扫码状态')
     emit('refresh')
     emit('close')
   } catch (err) {
@@ -60,28 +60,36 @@ async function cancel() {
 </script>
 
 <template>
-  <div v-if="open" class="modal-mask" @click.self="emit('close')">
-    <div class="modal">
-      <h2>
-        扫码登录
-        <span class="spacer" />
-        <button class="btn ghost" @click="emit('close')">关闭</button>
-      </h2>
-      <div class="muted">手机 B站 App →「我的」→ 扫一扫。二维码 3 分钟内有效。</div>
-
-      <div class="row">
-        <button class="btn primary" @click="newQr">{{ qr ? '换一张' : '生成二维码' }}</button>
-        <button class="btn" :disabled="!qr || checking" @click="check">
-          <span v-if="checking" class="spin" />
-          我已经扫了
-        </button>
-        <button class="btn ghost" @click="cancel">取消，回到原登录</button>
+  <el-dialog
+    :model-value="open"
+    title="扫码登录"
+    width="640px"
+    align-center
+    @update:model-value="emit('close')"
+  >
+    <template #header>
+      <div style="display: flex; align-items: center; gap: 8px">
+        <el-icon><Iphone /></el-icon>
+        <span style="font-size: 16px; font-weight: 650">扫码登录</span>
       </div>
+    </template>
 
-      <div class="qr-wrap">
-        <img v-if="qr" :src="qr" alt="二维码" />
-        <div class="muted" style="max-width: 380px">{{ qrText }}</div>
-      </div>
+    <el-alert
+      type="info"
+      :closable="false"
+      title="手机 B站 App →「我的」→ 扫一扫，二维码 3 分钟内有效"
+      show-icon
+    />
+
+    <div style="display: flex; gap: 9px; flex-wrap: wrap; margin-top: 16px">
+      <el-button type="primary" @click="newQr">{{ qr ? '换一张' : '生成二维码' }}</el-button>
+      <el-button :disabled="!qr" :loading="checking" @click="check">我已经扫了</el-button>
+      <el-button text @click="cancel">取消，回到原登录</el-button>
     </div>
-  </div>
+
+    <div class="qr-box">
+      <el-image v-if="qr" :src="qr" fit="contain" style="width: 220px; height: 220px; border-radius: 14px; background: #fff; padding: 8px" />
+      <div class="muted" style="max-width: 300px; line-height: 1.9">{{ qrText }}</div>
+    </div>
+  </el-dialog>
 </template>

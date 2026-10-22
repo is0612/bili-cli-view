@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { api } from '../api'
 import type { SettingsState } from '../types'
 
@@ -75,7 +77,7 @@ async function save() {
     notes.value = res.notes
     state.value = res.state
     apiKey.value = ''
-    emit('notify', '设置已保存')
+    ElMessage.success({ message: '设置已保存', grouping: true })
   } catch (err) {
     emit('notify', `保存失败：${(err as Error).message}`, true)
   } finally {
@@ -85,61 +87,71 @@ async function save() {
 </script>
 
 <template>
-  <div v-if="open" class="modal-mask" @click.self="emit('close')">
-    <div class="modal">
-      <h2>
-        设置
-        <span v-if="state?.api_key_set" class="pill ok">Key {{ state.api_key_mask }}</span>
-        <span v-else class="pill bad">Key 未配置</span>
-        <span class="spacer" />
-        <button class="btn ghost" @click="emit('close')">关闭</button>
-      </h2>
-      <div class="muted">
-        人设 = 工作区里的 <code>AGENTS.md</code>（刷B站每轮会内联进提示词）；API Key = 用户环境变量 +
-        <code>.credentials.yaml</code>。留空 = 不改。
+  <el-dialog
+    :model-value="open"
+    title="设置"
+    width="720px"
+    align-center
+    @update:model-value="emit('close')"
+  >
+    <template #header>
+      <div style="display: flex; align-items: center; gap: 8px">
+        <el-icon><Setting /></el-icon>
+        <span style="font-size: 16px; font-weight: 650">设置</span>
+        <el-tag v-if="state?.api_key_set" type="success" effect="plain" size="small" round>
+          Key {{ state.api_key_mask }}
+        </el-tag>
+        <el-tag v-else type="warning" effect="plain" size="small" round>Key 未配置</el-tag>
       </div>
+    </template>
 
-      <div v-if="loading" class="muted" style="margin-top: 12px"><span class="spin" /> 读取中…</div>
-
-      <template v-else>
-        <div class="field" style="margin-top: 14px">
-          <label>工作区（放 AGENTS.md 的目录）</label>
-          <input v-model="workspace" type="text" style="width: 100%" />
-        </div>
-
-        <div class="field" style="margin-top: 12px">
-          <label>人设 / AGENTS.md</label>
-          <textarea
-            v-model="persona"
-            rows="10"
-            style="width: 100%; font-family: Consolas, 'Microsoft YaHei', monospace"
-            placeholder="希望它怎么称呼你、什么话不能说、哪些是红线……"
-          />
-        </div>
-
-        <div class="field" style="margin-top: 12px">
-          <label>DeepSeek API Key（sk-…，留空 = 不改）</label>
-          <input v-model="apiKey" type="password" style="width: 100%" placeholder="sk-…" />
-        </div>
-
-        <div class="row">
-          <button class="btn primary" :disabled="saving" @click="save">
-            <span v-if="saving" class="spin" />
-            {{ saving ? '保存中…' : '保存' }}
-          </button>
-          <button class="btn" @click="insertTemplate">插入人设模板</button>
-          <label class="check">
-            <input v-model="syncPlugin" type="checkbox" />
-            同步到「刷B站」的工作区设置
-          </label>
-        </div>
-
-        <pre v-if="notes.length" style="margin-top: 14px">{{ notes.join('\n') }}</pre>
-        <div v-if="state" class="muted" style="margin-top: 12px">
-          人设文件：{{ state.agents_path }}<br />
-          插件目录：{{ state.duty_home }}
-        </div>
-      </template>
+    <div class="muted" style="margin-bottom: 6px">
+      人设 = 工作区里的 <code>AGENTS.md</code>（刷B站每轮会内联进提示词）；API Key = 用户环境变量 +
+      <code>.credentials.yaml</code>。留空 = 不改。
     </div>
-  </div>
+
+    <el-skeleton v-if="loading" :rows="4" animated />
+
+    <el-form v-else label-position="top">
+      <el-form-item label="工作区（放 AGENTS.md 的目录）">
+        <el-input v-model="workspace" placeholder="E:\工作\bili-cli" />
+      </el-form-item>
+
+      <el-form-item label="人设 / AGENTS.md">
+        <el-input
+          v-model="persona"
+          type="textarea"
+          :rows="9"
+          placeholder="希望它怎么称呼你、什么话不能说、哪些是红线……"
+          style="font-family: 'JetBrains Mono', Consolas, monospace"
+        />
+      </el-form-item>
+
+      <el-form-item label="DeepSeek API Key（sk-…，留空 = 不改）">
+        <el-input v-model="apiKey" type="password" show-password placeholder="sk-…" />
+      </el-form-item>
+    </el-form>
+
+    <el-alert
+      v-if="notes.length"
+      type="success"
+      :title="notes.join(' · ')"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 12px"
+    />
+
+    <div v-if="state" class="muted" style="line-height: 1.9">
+      人设文件 · {{ state.agents_path }}<br />
+      插件目录 · {{ state.duty_home }}
+    </div>
+
+    <template #footer>
+      <div style="display: flex; align-items: center; gap: 10px">
+        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+        <el-button @click="insertTemplate">插入模板</el-button>
+        <el-checkbox v-model="syncPlugin" style="margin-left: auto">同步到「刷B站」的工作区</el-checkbox>
+      </div>
+    </template>
+  </el-dialog>
 </template>
