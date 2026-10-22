@@ -8,6 +8,8 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5199,
     strictPort: true,
+    // 起服务就把浏览器拉起来（yarn dev / npm run dev 都走这里）
+    open: true,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8811',

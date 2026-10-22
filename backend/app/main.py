@@ -48,6 +48,12 @@ class SettingsBody(BaseModel):
 # ───────────────────────── 基础信息 ─────────────────────────
 
 
+@app.get("/api/ping")
+async def get_ping() -> Any:
+    """给脚本用的轻量探活：不碰 bili，立刻返回。"""
+    return {"ok": True}
+
+
 @app.get("/api/catalog")
 async def get_catalog() -> Any:
     return {"groups": CATALOG}

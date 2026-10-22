@@ -24,19 +24,23 @@ bili-cli 的图形控制台：**Vite + Vue 3 + TypeScript + Element Plus** 前�
 ## 跑起来
 
 ```bash
-# 1) 后端（首次）
+# 1) 依赖（首次）
 uv venv .venv
 uv pip install --python .venv\Scripts\python.exe -r backend/requirements.txt
+npm install        # 或者 yarn
 
-# 2) 前端依赖
-npm install
-
-# 3) 开发（两个终端，或者直接跑 scripts/dev.ps1）
-.venv\Scripts\python.exe -m uvicorn app.main:app --port 8811 --reload --app-dir backend
-npm run dev            # http://127.0.0.1:5199 ，/api 自动代理到 8811
+# 2) 一条命令起全套：后端 8811 + 前端 5199 + 自动开浏览器
+yarn dev           # 等同 npm run dev
 ```
 
-生产模式：`npm run build` 之后 `dist/` 由 FastAPI 直接托管（单端口 8811）。
+`yarn dev` 实际跑的是 `scripts/dev.mjs`：
+
+- 先探活 `http://127.0.0.1:8811/api/ping`，没有后端就起一个（带 `--reload`）；
+- 再起 Vite（`--open`，起来就弹浏览器）；
+- Ctrl+C 会把两个进程一起收掉。
+
+只想跑前端、后端自己另开：`yarn dev:web`。
+改完代码 `yarn build` 后，`dist/` 会由 FastAPI 直接托管（单端口 8811，适合当成品用）。
 
 ## 目录
 
