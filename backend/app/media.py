@@ -6,7 +6,7 @@ import json
 import urllib.parse
 import urllib.request
 
-from .paths import BILI_CONFIG_DIR, PROJECT_ROOT
+from .paths import BILI_CONFIG_DIR, DATA_HOME, PROJECT_ROOT
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/125.0 Safari/537.36")
@@ -72,6 +72,6 @@ def allowed_local(path: str) -> bool:
         target = Path(path).resolve()
     except Exception:  # noqa: BLE001
         return False
-    roots = [PROJECT_ROOT.resolve(), BILI_CONFIG_DIR.resolve(),
+    roots = [PROJECT_ROOT.resolve(), DATA_HOME.resolve(), BILI_CONFIG_DIR.resolve(),
              (BILI_CONFIG_DIR / "frames").resolve()]
     return any(str(target).startswith(str(r)) for r in roots) and target.is_file()

@@ -4,17 +4,18 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from . import agent, duty, media, schema_catalog, selfcheck, settings
+from . import agent, duty, media, profile, schema_catalog, selfcheck, settings
 from .catalog import CATALOG
 from .paths import CREDS_YAML, PROJECT_ROOT, QR_PATH, bili_bin, ensure_dirs
 from .runner import bili_json, run_bili
@@ -22,6 +23,7 @@ from .runner import bili_json, run_bili
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    profile.migrate()       # 老版本把数据存在仓库/DSH 目录里，这里搬进 DATA_HOME
     ensure_dirs()
     task = asyncio.create_task(agent.scheduler_loop())   # 谷时定时器
     try:
@@ -250,6 +252,59 @@ async def get_settings() -> Any:
 async def post_settings(body: SettingsBody) -> Any:
     notes = settings.save(body.workspace, body.agents_md, body.api_key, body.sync_plugin)
     return {"ok": True, "notes": notes, "state": settings.state()}
+
+
+# ───────────────────────── 我的数据（备份 / 换人） ─────────────────────────
+
+
+@app.get("/api/profile")
+async def get_profile() -> Any:
+    """数据目录在哪、有多大、有没有旧地址残留 —— 面板的「数据与备份」用它。"""
+    return profile.info()
+
+
+@app.post("/api/profile/open")
+async def post_profile_open() -> Any:
+    profile.open_dir()
+    return {"ok": True}
+
+
+@app.get("/api/profile/export")
+async def get_profile_export(secrets: bool = False) -> Response:
+    """导出成 zip。默认不含 API Key，勾了 secrets=1 才带上。"""
+    data = profile.export_zip(include_secrets=secrets)
+    name = f"bili-desk-backup-{datetime.now():%Y%m%d-%H%M}.zip"
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{name}"',
+                 "Cache-Control": "no-store"},
+    )
+
+
+@app.post("/api/profile/import")
+async def post_profile_import(request: Request) -> Any:
+    """导入备份：请求体就是 zip 本身（不走 multipart，少一个依赖）。
+
+    当前数据会改名留档，不会被直接删掉。
+    """
+    data = await request.body()
+    if len(data) > 200 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="备份文件太大（>200MB）")
+    try:
+        notes = profile.import_zip(data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"导入失败：{exc}") from exc
+    return {"ok": True, "notes": notes, "profile": profile.info()}
+
+
+@app.post("/api/profile/reset")
+async def post_profile_reset() -> Any:
+    """清空（换人用）：旧数据改名留档，然后建一份空的。"""
+    notes = profile.reset()
+    return {"ok": True, "notes": notes, "profile": profile.info()}
 
 
 # ───────────────────────── 图片 ─────────────────────────

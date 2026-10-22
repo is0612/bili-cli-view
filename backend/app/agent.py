@@ -17,16 +17,25 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import Any
 
-from .paths import PROJECT_ROOT
+from .paths import (
+    CFG_JSON,
+    DATA_HOME,
+    ENV_FILE,
+    LOG_DIR,
+    OUT_DIR,
+    PROJECT_ROOT,
+    SEEN_MD,
+    STATE_JSON,
+    WORKSPACE,
+)
 from .runner import run_bili
+from .subproc import run_capture
 
-RUNTIME = PROJECT_ROOT / "runtime"
-DUTY_DIR = RUNTIME / "duty"
-OUT_DIR = DUTY_DIR / "out"
-LOG_DIR = DUTY_DIR / "logs"
-CONFIG = DUTY_DIR / "config.json"
-STATE = DUTY_DIR / "state.json"
-SEEN = DUTY_DIR / "seen.md"
+# 我的数据全在 DATA_HOME（用户目录下），仓库里只放程序 —— 发给别人不会带上你的设定
+DUTY_DIR = DATA_HOME
+CONFIG = CFG_JSON
+STATE = STATE_JSON
+SEEN = SEEN_MD
 CHARTER = PROJECT_ROOT / "duty" / "duty.md"
 
 DSH_BIN = Path(os.environ.get("APPDATA", "")) / "npm" / "node_modules" / "@deepseek-ai" / "dsh" / "lib" / "bin.js"
@@ -39,8 +48,10 @@ DEFAULTS: dict[str, Any] = {
     "peakValley": True,
     "noon": True,
     "night": True,
-    "keywords": ["原神", "崩坏星穹铁道", "绝区零", "星布谷地", "米哈游", "DeepSeek", "AI", "萌宠"],
-    "zone": "tech",
+    # 关键词/分区属于「这个人在追什么」，不能有默认值 —— 否则新用户拿到的是作者的偏好。
+    # 空关键词也能跑：只有当轮不按关键词搜，只看推荐流 + 热榜（见 duty/duty.md）。
+    "keywords": [],
+    "zone": "all",
     "frames": 0,
     "autoComment": False,
     "mentionName": "",
@@ -57,7 +68,7 @@ _last: dict[str, Any] = {}
 
 
 def _ensure() -> None:
-    for p in (DUTY_DIR, OUT_DIR, LOG_DIR):
+    for p in (DUTY_DIR, OUT_DIR, LOG_DIR, WORKSPACE):
         p.mkdir(parents=True, exist_ok=True)
     if not STATE.exists():
         STATE.write_text(json.dumps({"day": date.today().isoformat(), "picked": 0,
@@ -96,7 +107,7 @@ def save(patch: dict[str, Any]) -> list[str]:
             value = [str(k).strip() for k in value if str(k).strip()]
         cfg[key] = value
     CONFIG.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
-    return ["已写 runtime/duty/config.json"]
+    return [f"已写 {CONFIG}"]
 
 
 def _today() -> str:
@@ -191,13 +202,18 @@ def _prompt(cfg: dict[str, Any]) -> str:
                       else "正文里一个 @ 都别写，别提主人"))
     else:
         comment = "公开评论：关着，一条都别发"
+    keywords = [str(k) for k in (cfg.get("keywords") or []) if str(k).strip()]
+    keyword_text = ("、".join(keywords) if keywords
+                    else "（没设关键词：跳过按关键词搜索，只看推荐流和热榜）")
+    zone = str(cfg.get("zone") or "all")
+    zone_text = "全站" if zone == "all" else zone
     return (
         charter.replace("N 条", f"{remaining} 条")
         + "\n\n---\n\n## 这一轮的设置\n\n"
         + f"- 今天日期：{_today()}\n"
         + f"- 今天还能挑：{remaining} 条（每天上限 {cfg['perDay']}）\n"
-        + f"- 关注关键词：{'、'.join(cfg['keywords'])}\n"
-        + f"- 热门分区：{cfg['zone']}\n"
+        + f"- 关注关键词：{keyword_text}\n"
+        + f"- 热门分区：{zone_text}\n"
         + f"- 抽帧：{cfg['frames']} 帧（0 = 不抽；这些图只有视觉模型才看得懂，你按 0 处理就行）\n"
         + f"- 投递：{dm}；{comment}\n"
         + f"- 判重表：{SEEN}\n"
@@ -223,9 +239,11 @@ async def run_round(why: str = "manual") -> dict[str, Any]:
     started = time.time()
     try:
         prompt = _prompt(cfg)
+        workspace = _workspace()
         env = dict(os.environ)
         env["DSH_PERMISSION_MODE"] = "danger-full-access"   # 沙箱里 pwsh 起不来（0xC0000142）
         env["PYTHONIOENCODING"] = "utf-8"
+        env["BILI_DESK_HOME"] = str(DATA_HOME)              # 子进程里的 bili 也认这个数据目录
         env.setdefault("DEEPSEEK_API_KEY", _deepseek_key())
         # 让子进程里的 `bili` 也走项目 venv 那份（和面板用的是同一个版本）
         venv_bin = PROJECT_ROOT / ".venv" / ("Scripts" if os.name == "nt" else "bin")
@@ -242,22 +260,23 @@ async def run_round(why: str = "manual") -> dict[str, Any]:
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = subprocess.SW_HIDE
-        proc = await asyncio.create_subprocess_exec(
-            NODE, str(DSH_BIN), "--profile", "headless", prompt,
-            cwd=str(PROJECT_ROOT),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
+        # 不能直接用 asyncio 的子进程：uvicorn --reload 在 Windows 上会切到
+        # SelectorEventLoop，那里根本没有子进程支持（见 app/subproc.py）。
+        res = await run_capture(
+            [NODE, str(DSH_BIN), "--profile", "headless", prompt],
+            cwd=str(workspace),
             env=env,
+            timeout=900,
             creationflags=creationflags,
             startupinfo=startupinfo,
+            merge_stderr=True,
         )
-        try:
-            out, _ = await asyncio.wait_for(proc.communicate(), timeout=900)
-            code = proc.returncode
-        except asyncio.TimeoutError:
-            proc.kill()
+        code = res["code"]
+        out = res["out"]
+        if res["error"]:
+            out = f"{res['error']}\n".encode()
+        elif res["timeout"] and not out:
             out = b"(timeout)"
-            code = 124
         log_path.write_bytes(out)
         _save_state(rounds=int(_read_json(STATE, {}).get("rounds") or 0) + 1,
                     lastRunAt=datetime.now().isoformat(timespec="seconds"))
@@ -269,7 +288,30 @@ async def run_round(why: str = "manual") -> dict[str, Any]:
         _running = False
 
 
+def _workspace() -> Path:
+    """值班会话的 cwd：优先用设置里指定的工作区，默认是数据目录下的 workspace/。
+
+    放在这里（而不是仓库根目录）是为了「代码归代码、人设归人设」：
+    仓库发给别人永远不含你的 AGENTS.md。
+    """
+    raw = str(_read_json(CONFIG, {}).get("workspace") or "").strip()
+    path = Path(raw) if raw else WORKSPACE
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return WORKSPACE
+    return path
+
+
 def _deepseek_key() -> str:
+    """API Key 的顺序：数据目录的 .env > 老的 ~/.dsh/.credentials.yaml。"""
+    try:
+        text = ENV_FILE.read_text(encoding="utf-8")
+        m = re.search(r"^DEEPSEEK_API_KEY\s*=\s*(\S+)", text, re.MULTILINE)
+        if m:
+            return m.group(1)
+    except OSError:
+        pass
     try:
         text = (Path(os.environ.get("DSH_HOME", Path.home() / ".dsh")) / ".credentials.yaml").read_text(encoding="utf-8")
         m = re.search(r"DEEPSEEK_API_KEY:\s*(\S+)", text)
