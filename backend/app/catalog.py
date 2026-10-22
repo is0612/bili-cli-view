@@ -32,7 +32,7 @@ CATALOG: list[dict[str, Any]] = [
         {"id": "me.stats", "label": "创作数据", "argv": ["me", "stats"]},
         {"id": "owner.show", "label": "当前主人", "argv": ["owner", "show"]},
         {"id": "owner.set", "label": "设置主人", "argv": ["owner", "set"],
-         "params": [p("uid", "UID / 昵称", pos=True, ph="3747573877706483")]},
+         "params": [p("uid", "UID / 昵称", pos=True, ph="12345678")]},
         {"id": "me.favs", "label": "我的收藏夹", "argv": ["me", "favs"]},
     ]},
     {"group": "收件箱", "items": [

@@ -25,7 +25,7 @@ async function copyJson() {
 <template>
   <el-card class="result-card" :class="{ 'is-error': !ok }" shadow="never">
     <div class="res-head">
-      <el-tag :type="ok ? 'success' : 'danger'" effect="dark" round size="small">
+      <el-tag :type="ok ? 'success' : 'danger'" effect="dark" round size="small" disable-transitions>
         {{ ok ? '执行成功' : `失败 · ${result.code ?? ''}` }}
       </el-tag>
       <span class="cmd-chip">bili {{ result.argv.join(' ') }}</span>

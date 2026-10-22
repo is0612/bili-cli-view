@@ -21,6 +21,8 @@ const loginOpen = ref(false)
 const runnerRef = ref<InstanceType<typeof CommandRunner> | null>(null)
 const initialValues = ref<Record<string, string>>({})
 const autoRun = ref(false)
+/** ?demo=1：隐藏版本/账号/主人这三个 chip，方便截公开截图。 */
+const demo = ref(false)
 
 const { notify } = useToast()
 
@@ -67,6 +69,7 @@ onMounted(async () => {
   void loadMeta()
 
   const qs = new URLSearchParams(location.search)
+  demo.value = qs.get('demo') === '1'
   if (qs.get('settings') === '1') settingsOpen.value = true
   if (qs.get('login') === '1') loginOpen.value = true
   const cmdId = qs.get('cmd')
@@ -93,15 +96,15 @@ onMounted(async () => {
         <div class="brand-name">bili<span>·view</span></div>
       </div>
 
-      <el-tag round effect="plain" type="info" size="default">v{{ meta?.version ?? '…' }}</el-tag>
-      <el-tag round :type="loggedIn ? 'success' : 'danger'" effect="plain">
+      <el-tag v-if="!demo" round effect="plain" type="info" size="default">v{{ meta?.version ?? '…' }}</el-tag>
+      <el-tag v-if="!demo" round :type="loggedIn ? 'success' : 'danger'" effect="plain">
         <span
           v-if="loggedIn"
           style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 6px"
         />
         {{ loggedIn ? `${meta?.auth.user?.name} · Lv${level}` : '未登录' }}
       </el-tag>
-      <el-tag v-if="meta?.owner" round effect="plain" type="info">主人 · {{ meta.owner.name }}</el-tag>
+      <el-tag v-if="!demo && meta?.owner" round effect="plain" type="info">主人 · {{ meta.owner.name }}</el-tag>
 
       <span class="spacer" />
 

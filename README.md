@@ -7,11 +7,26 @@ bili-cli 的图形控制台：**Vite + Vue 3 + TypeScript + Element Plus** 前�
 
 ![首页](docs/screenshot-home.png)
 
-![推荐列表](docs/screenshot-list.png)
+![分区排行](docs/screenshot-list.png)
 
-| 看懂视频 | 设置 |
-| --- | --- |
-| ![看懂视频](docs/screenshot-watch.png) | ![设置](docs/screenshot-settings.png) |
+![看懂视频](docs/screenshot-watch.png)
+
+> 截图里的账号信息已隐去（`?demo=1` 会隐藏顶栏的版本/账号/主人三个 chip）。
+
+## 换个人用 / 多台机器
+
+**登录态不跟着代码走**，每个机器各自扫码：
+
+- 凭证存在本机 `%APPDATA%\bili-cli\credential.json`（macOS/Linux 是 `~/.config/bili-cli/`），
+  `.gitignore` 已经把它排除在外，仓库里没有任何 token；
+- 别人 clone 下来跑 `yarn dev`，顶栏会显示「未登录」→ 点「扫码登录」，用**自己的** B站 App 扫；
+- 扫完所有数据（推荐流、收件箱、我的稿件、主人）都来自**他自己的账号**，和作者无关；
+- 「主人」是「AI 要 @ 谁 / 私信给谁」，要改成自己的 UID：命令面板里跑
+  `owner.set`，或者命令行 `bili owner set <你的UID>`；
+- 想彻底换人：删掉 `credential.json` 再扫码即可（不用重装）。
+
+唯一需要作者自己处理的是**截图和占位符**：README 里的图用 `?demo=1` 拍，代码里的示例 UID 是
+`12345678` 这种假号。
 
 ## 为什么要有后端
 

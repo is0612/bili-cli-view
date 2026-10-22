@@ -46,6 +46,7 @@ const sheet = computed(() =>
         :key="tag"
         size="small"
         effect="plain"
+        disable-transitions
         style="margin: 0 6px 6px 0"
         >{{ tag }}</el-tag
       >
