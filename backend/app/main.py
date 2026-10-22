@@ -15,14 +15,15 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from . import agent, duty, media, profile, schema_catalog, selfcheck, settings
+from . import agent, duty, media, menu, netenv, profile, schema_catalog, selfcheck, settings
 from .catalog import CATALOG
-from .paths import CREDS_YAML, PROJECT_ROOT, QR_PATH, bili_bin, ensure_dirs
+from .paths import BILI_CONFIG_DIR, PROJECT_ROOT, QR_PATH, bili_bin, ensure_dirs
 from .runner import bili_json, run_bili
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    netenv.prefer_ipv4()    # IPv6 有地址但不通的机器上，否则每张图都要卡到超时
     profile.migrate()       # 老版本把数据存在仓库/DSH 目录里，这里搬进 DATA_HOME
     ensure_dirs()
     task = asyncio.create_task(agent.scheduler_loop())   # 谷时定时器
@@ -66,6 +67,7 @@ SPECIAL_GROUPS: list[dict[str, Any]] = [
         {"id": "duty.settings", "label": "值班设置", "argv": [], "kind": "duty"},
         {"id": "duty.dynamic", "label": "发动态", "argv": [], "kind": "dynamic"},
         {"id": "duty.seen", "label": "她看过什么", "argv": [], "kind": "seen"},
+        {"id": "duty.journal", "label": "她的札记", "argv": [], "kind": "journal"},
     ]},
     {"group": "面板", "items": [
         {"id": "selfcheck", "label": "升级自检", "argv": [], "kind": "selfcheck"},
@@ -74,12 +76,46 @@ SPECIAL_GROUPS: list[dict[str, Any]] = [
 
 
 @app.get("/api/catalog")
-async def get_catalog() -> Any:
-    """侧栏命令表：以 `bili schema` 为准（新增/改名自动跟上），失败才退回手写清单。"""
+async def get_catalog(include_hidden: bool = Query(False, alias="all")) -> Any:
+    """侧栏命令表：以 `bili schema` 为准（新增/改名自动跟上），失败才退回手写清单。
+
+    `?all=1` 时跳过显隐过滤，返回完整表 —— 菜单管理弹窗要用它，
+    否则被隐藏的分组在弹窗里也看不到，就没法勾回来了。
+    """
     groups, version, from_schema = await schema_catalog.build()
     if not from_schema:
-        return {"groups": CATALOG, "source": "static"}
-    return {"groups": SPECIAL_GROUPS + groups, "source": "schema", "version": version}
+        groups = CATALOG
+    else:
+        groups = SPECIAL_GROUPS + groups
+    if not include_hidden:
+        groups = menu.filter_groups(groups)
+    if not from_schema:
+        return {"groups": groups, "source": "static"}
+    return {"groups": groups, "source": "schema", "version": version}
+
+
+@app.get("/api/menu")
+async def get_menu() -> Any:
+    """侧栏菜单显隐配置。"""
+    return menu.state()
+
+
+class MenuBody(BaseModel):
+    hidden_groups: list[str] = []
+    hidden_items: list[str] = []
+
+
+@app.post("/api/menu")
+async def post_menu(body: MenuBody) -> Any:
+    """保存菜单显隐配置，返回过滤后的最新命令表。"""
+    cfg = menu.save(body.hidden_groups, body.hidden_items)
+    groups, version, from_schema = await schema_catalog.build()
+    if not from_schema:
+        groups = CATALOG
+    else:
+        groups = SPECIAL_GROUPS + groups
+    groups = menu.filter_groups(groups)
+    return {"ok": True, "config": cfg, "groups": groups}
 
 
 @app.get("/api/meta")
@@ -132,7 +168,9 @@ async def get_qr() -> Response:
 @app.post("/api/cancel-login")
 async def cancel_login() -> Any:
     """把待扫码状态挪走 —— 否则 `auth status` 会一直回「待扫码」，看起来像掉登录。"""
-    pending = Path(CREDS_YAML).parent / "bili-cli" / "pending_login.json"
+    # pending 文件在 bili-cli 的配置目录（APPDATA/Roaming/bili-cli），
+    # 不是 .dsh 下面 —— 早先按 CREDS_YAML 的父目录拼，永远找不到，取消登录等于没效果。
+    pending = BILI_CONFIG_DIR / "pending_login.json"
     moved = None
     if pending.exists():
         bak = pending.with_suffix(".json.bak")
@@ -182,6 +220,21 @@ async def get_agent_report(day: str | None = None) -> Any:
 @app.get("/api/agent/seen")
 async def get_agent_seen() -> Any:
     return agent.seen()
+
+
+@app.get("/api/agent/journal")
+async def get_agent_journal() -> Any:
+    return agent.journal()
+
+
+class JournalBody(BaseModel):
+    entries: list[str]
+
+
+@app.post("/api/agent/journal")
+async def post_agent_journal(body: JournalBody) -> Any:
+    """整份覆盖人格札记（面板里改完保存）。"""
+    return agent.journal_update(body.entries)
 
 
 # ───────────────────────── 刷B站值班（旧插件） ─────────────────────────

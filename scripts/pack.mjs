@@ -5,8 +5,8 @@
  *   node scripts/pack.mjs                 → pack/bili-desk-<日期>.zip
  *   node scripts/pack.mjs --with-uv       → 连 .tools/uv.exe 一起带上（对方省一次下载）
  *
- * 不装：.venv、node_modules、dist、runtime、__pycache__、日志、个人数据目录。
- * （个人数据本来就在 %APPDATA%\bili-desk，不在仓库里，所以这里怎么打都是干净的。）
+ * 不装：.venv、node_modules、dist、runtime、data、__pycache__、日志、个人数据目录。
+ * （个人数据在 %APPDATA%\bili-desk 或便携模式的 data/ 里，都不进包，所以怎么打都是干净的。）
  */
 import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
@@ -19,7 +19,7 @@ const OUT_DIR = join(ROOT, 'pack')
 const withUv = process.argv.includes('--with-uv')
 
 const SKIP = new Set([
-  '.git', '.venv', 'node_modules', 'dist', 'runtime', 'pack', '__pycache__', '.vite',
+  '.git', '.venv', 'node_modules', 'dist', 'runtime', 'data', 'pack', '__pycache__', '.vite',
   '.tools', // 默认跳过；--with-uv 时单独处理
 ])
 const SKIP_FILES = new Set(['tsconfig.tsbuildinfo', '.DS_Store'])

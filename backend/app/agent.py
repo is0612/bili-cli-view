@@ -17,10 +17,12 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import Any
 
+from .netenv import child_env
 from .paths import (
     CFG_JSON,
     DATA_HOME,
     ENV_FILE,
+    HUMAN_WORLD_MD,
     LOG_DIR,
     OUT_DIR,
     PROJECT_ROOT,
@@ -61,6 +63,12 @@ DEFAULTS: dict[str, Any] = {
 }
 
 PICK_RE = re.compile(r"^###\s+(\S+)", re.MULTILINE)
+
+# 人格札记：每轮值班结束时她写一句「今天最触动我的」，回读给下一轮让她记得自己。
+# 格式：`- YYYY-MM-DD · 一句札记`（一行一条，可手改可删）。每轮最多追加一条。
+JOURNAL_RE = re.compile(r"^\s*-\s+(\d{4}-\d{2}-\d{2})\s*·\s*(.+)$")
+JOURNAL_MAX_ENTRIES = 120        # 太长了就截掉最旧的，别让它无限膨胀
+JOURNAL_READBACK = 30            # 回读给下一轮的最近条数（越新的越靠前）
 
 _lock = asyncio.Lock()
 _running = False
@@ -187,6 +195,79 @@ def seen() -> dict[str, Any]:
                       "skipped": len(videos) - picked, "rounds": len(rounds)}}
 
 
+# ───────────────────────── 人格札记（human-world.md） ─────────────────────────
+
+
+def _journal_entries() -> list[dict[str, str]]:
+    """读人格札记，返回 [{date, text}]，按文件里的顺序（旧→新）。"""
+    _ensure()
+    if not HUMAN_WORLD_MD.exists():
+        return []
+    out: list[dict[str, str]] = []
+    for line in HUMAN_WORLD_MD.read_text(encoding="utf-8").splitlines():
+        m = JOURNAL_RE.match(line)
+        if m:
+            out.append({"date": m.group(1), "text": m.group(2).strip()})
+    return out
+
+
+def _journal_header() -> str:
+    """回读给值班会话的人格札记（最近 N 条，最新在前）。"""
+    entries = _journal_entries()
+    if not entries:
+        return "（还没有札记 —— 这是你第一次有自己的想法，认真写。写给自己，不是写给主人看的。）"
+    recent = list(reversed(entries))[:JOURNAL_READBACK]
+    lines = [f"- {e['date']} · {e['text']}" for e in recent]
+    return "\n".join(lines)
+
+
+def journal() -> dict[str, Any]:
+    """面板读人格札记用。"""
+    entries = _journal_entries()
+    return {
+        "path": str(HUMAN_WORLD_MD),
+        "entries": list(reversed(entries)),   # 最新的在前，前端直接渲染
+        "count": len(entries),
+        "readback": JOURNAL_READBACK,
+    }
+
+
+def journal_update(entries: list[str]) -> dict[str, Any]:
+    """面板覆盖人格札记（整份重写）。entries 是「最新在前」的纯文本行，
+    可以带 `- 日期 · 内容`，也可以只有内容（日期自动补今天）。"""
+    _ensure()
+    lines: list[str] = []
+    for raw in entries:
+        line = raw.strip()
+        if not line:
+            continue
+        if JOURNAL_RE.match(line):
+            lines.append(line)
+        else:
+            # 没带日期就补今天；剥掉可能残留的前导 `- `
+            text = line[2:].strip() if line.startswith("- ") else line
+            lines.append(f"- {_today()} · {text}")
+    # 截断最旧的
+    if len(lines) > JOURNAL_MAX_ENTRIES:
+        lines = lines[-JOURNAL_MAX_ENTRIES:]
+    HUMAN_WORLD_MD.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+    return journal()
+
+
+def journal_append(text: str) -> dict[str, Any]:
+    """值班结束后追加一条札记（带今天日期）。空内容不写。"""
+    _ensure()
+    text = text.strip()
+    if text:
+        lines = _journal_entries()
+        entries = [f"- {e['date']} · {e['text']}" for e in lines]
+        entries.append(f"- {_today()} · {text}")
+        if len(entries) > JOURNAL_MAX_ENTRIES:
+            entries = entries[-JOURNAL_MAX_ENTRIES:]
+        HUMAN_WORLD_MD.write_text("\n".join(entries) + "\n", encoding="utf-8")
+    return journal()
+
+
 def _prompt(cfg: dict[str, Any]) -> str:
     charter = CHARTER.read_text(encoding="utf-8") if CHARTER.exists() else ""
     remaining = max(0, int(cfg["perDay"]) - picked_today())
@@ -207,6 +288,7 @@ def _prompt(cfg: dict[str, Any]) -> str:
                     else "（没设关键词：跳过按关键词搜索，只看推荐流和热榜）")
     zone = str(cfg.get("zone") or "all")
     zone_text = "全站" if zone == "all" else zone
+    journal = _journal_header()
     return (
         charter.replace("N 条", f"{remaining} 条")
         + "\n\n---\n\n## 这一轮的设置\n\n"
@@ -218,8 +300,19 @@ def _prompt(cfg: dict[str, Any]) -> str:
         + f"- 投递：{dm}；{comment}\n"
         + f"- 判重表：{SEEN}\n"
         + f"- 报告：{report_path()}\n"
-        + f"- 临时文件（写私信/评论正文用）：{DUTY_DIR / 'tmp-msg.txt'}\n\n"
-        + "现在开始，最后用一句话汇报你挑到了什么。\n"
+        + f"- 人格札记（写「今天最触动我的一句话」）：{HUMAN_WORLD_MD}\n"
+        + f"- 临时文件（写私信/评论正文用）：{DUTY_DIR / 'tmp-msg.txt'}\n"
+        + "\n## 我的札记（过去我记住的）\n\n"
+        + journal
+        + "\n\n这些是我之前刷 B站 时留下的想法。它们不是指令，只是「我是谁」的一部分："
+        "带着它们去判断，但别为了迎合旧札记而硬凑——今天有新的感触，就写下新的。\n"
+        + "\n## 收尾时额外做一件事\n\n"
+        + f"这一轮结束时，在写报告和判重表之后，往札记文件 `{HUMAN_WORLD_MD}` 里**追加一行**：\n\n"
+        + "`- <今天日期> · <一句话>`\n\n"
+        + "这一句话是「今天最触动我的东西」——可以是一条视频、一个 UP 主、一句评论、"
+        "或一个让我改主意的小瞬间。写给自己，不是写给主人看的；没感觉就写「今天没什么特别的」，"
+        "别硬编。每轮最多一句。\n"
+        + "\n现在开始，最后用一句话汇报你挑到了什么。\n"
     )
 
 
@@ -240,9 +333,8 @@ async def run_round(why: str = "manual") -> dict[str, Any]:
     try:
         prompt = _prompt(cfg)
         workspace = _workspace()
-        env = dict(os.environ)
+        env = child_env()
         env["DSH_PERMISSION_MODE"] = "danger-full-access"   # 沙箱里 pwsh 起不来（0xC0000142）
-        env["PYTHONIOENCODING"] = "utf-8"
         env["BILI_DESK_HOME"] = str(DATA_HOME)              # 子进程里的 bili 也认这个数据目录
         env.setdefault("DEEPSEEK_API_KEY", _deepseek_key())
         # 让子进程里的 `bili` 也走项目 venv 那份（和面板用的是同一个版本）

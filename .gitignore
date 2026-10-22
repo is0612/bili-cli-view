@@ -6,9 +6,14 @@ pack/
 __pycache__/
 *.py[cod]
 runtime/
+data/
 *.log
 .DS_Store
 .vite/
 
 *.tsbuildinfo
 .workbuddy/
+
+# 设计稿的历史版本：本地留档，不进仓库
+design/_archive/
+design/_archive_v3/

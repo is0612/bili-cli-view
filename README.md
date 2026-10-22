@@ -52,26 +52,34 @@ APScheduler（谷时窗口，每 30 秒看一眼）
 
 ## 我的数据在哪（换设备 / 换人）
 
-**程序归程序，数据归数据**，这条分界线是这版的重点：
+**程序归程序，数据归数据**，这条分界线是这版的重点。数据目录按这个顺序找，第一个命中的就用：
 
-| | 放哪儿 | 会跟着仓库发给别人吗 |
+| 优先级 | 位置 | 什么时候用 |
 | --- | --- | --- |
-| 代码、`dist/`、`duty/duty.md` 章程 | 仓库目录 | 会（应该是干净的） |
-| 设定、判重表、报告、日志、人设 `AGENTS.md`、API Key | `%APPDATA%\bili-desk\`（macOS：`~/Library/Application Support/bili-desk`） | **不会** |
+| 1 | 环境变量 `BILI_DESK_HOME` 指的目录 | 想放网盘自动同步（OneDrive / 坚果云）时手动设 |
+| 2 | **程序目录下的 `data/`** | **便携模式：这个目录存在就用它，数据跟着文件夹走** |
+| 3 | `%APPDATA%\bili-desk\`（macOS：`~/Library/Application Support/bili-desk`） | 上面两个都没有时的默认位置 |
+
+| | 放哪儿 |
+| --- | --- |
+| 代码、`dist/`、`duty/duty.md` 章程 | 仓库目录（**打 zip 发给别人时不带 `data/`**） |
+| 设定、判重表、报告、日志、人设 `AGENTS.md`、API Key | 上面那张表决定的**数据目录** |
 
 所以：
 
-- **发给新人**：直接把目录拷过去，对方第一次打开就是干净的 —— 你的设定和历史根本不在目录里，
-  顶栏「未登录」，扫码就是他自己的账号；
+- **换电脑（最省事）**：程序目录里有 `data/`，把**整个文件夹**拷到新机器 —— 人设、设定、报告、
+  判重表全在 `data/` 里，一起过去了。启动后面板会提示「已把旧数据搬进 data/」；
+  没开便携模式的话，用设置里「导出备份」得到 zip，到新机器「导入备份…」选它；
 - **同一台机器换人**：设置 → 数据与备份 →「清空（换人用）」，旧数据会改名留一份 `.bak-时间戳`；
-- **同一个人换电脑**：设置 → 数据与备份 →「导出备份」得到一个 zip，到新机器上「导入备份…」选它；
-- **想自动同步**：把环境变量 `BILI_DESK_HOME` 指到 OneDrive / 坚果云的某个子目录，面板就写在那里。
+  想连人设一起清干净再发给别人，清空后删掉 `data/` 即可（打 `node scripts/pack.mjs` 的包天然不含它）；
+- **想自动同步**：把环境变量 `BILI_DESK_HOME` 指到 OneDrive / 坚果云的某个子目录，面板就写在那里；
+- **设置入口**：顶栏右上角那个**齿轮按钮**（`?settings=1` 也能直接打开）。
 
 几个边界：导出默认**不含 API Key**（想带就勾「连 API Key」）；B站的登录态永远留在本机
 `%APPDATA%\bili-cli\credential.json`，不随备份走 —— 换机器重新扫码，比带着 token 到处跑安全。
 
-老版本把数据写在仓库的 `runtime/duty/` 或 `~/.dsh/bili-duty/`，启动时会自动搬进新数据目录并删掉空壳目录，
-不需要手动处理。
+老版本把数据写在仓库的 `runtime/duty/`、`~/.dsh/bili-duty/` 或 `%APPDATA%\bili-desk\`，
+启动时会自动搬进当前数据目录并删掉空壳目录，不需要手动处理。
 
 命令行等价物：`node scripts/profile.mjs where|export|import|reset`（面板要开着）。
 
@@ -121,7 +129,7 @@ node scripts/pack.mjs            # → pack/bili-desk-<日期>.zip（约 3MB，�
 node scripts/pack.mjs --with-uv  # → 17MB，连 .tools/uv.exe 一起带上，对方省一次 15MB 下载
 ```
 
-包里**天然不含**个人数据（数据在 `%APPDATA%\bili-desk`，本来就不在仓库里），
+包里**天然不含**个人数据（数据目录是便携模式的 `data/` 或 `%APPDATA%\bili-desk`，都不进包），
 也不含 `.venv/`、`node_modules/`、`dist/`、`runtime/`、日志 —— 这些每台机器各自生成，
 硬带过去反而会因为 `.venv` 里写死的解释器路径而报错。
 

@@ -18,11 +18,13 @@ from typing import Any
 
 from .paths import (
     AGENTS_MD,
+    APPDATA_HOME,
     CFG_JSON,
     DATA_HOME,
     ENV_FILE,
     LEGACY_DATA_DIRS,
     OUT_DIR,
+    PORTABLE_HOME,
     PROJECT_ROOT,
     SEEN_MD,
     WORKSPACE,
@@ -68,6 +70,48 @@ def _has_data(folder: Path) -> bool:
     return False
 
 
+def _adopt_appdata(notes: list[str]) -> bool:
+    """便携模式第一次启动：把 %APPDATA%\\bili-desk 里的旧数据搬进 data/。
+
+    只在「数据目录就是程序目录下的 data/」且那边还空着的时候动手，
+    `BILI_DESK_HOME` 覆盖的情况一律不碰，免得把用户指定的目录搞乱。
+    """
+    if DATA_HOME != PORTABLE_HOME:
+        return False
+    if DATA_HOME == APPDATA_HOME or not _has_data(APPDATA_HOME):
+        return False
+
+    moved: list[str] = []
+    for name in ("config.json", "state.json", "seen.md", "menu.json", ".env"):
+        src = APPDATA_HOME / name
+        if src.exists() and not (DATA_HOME / name).exists():
+            try:
+                shutil.move(str(src), str(DATA_HOME / name))
+                moved.append(name)
+            except OSError:
+                pass
+    for sub in ("workspace", "out", "logs"):
+        src, dst = APPDATA_HOME / sub, DATA_HOME / sub
+        if not src.is_dir():
+            continue
+        dst.mkdir(parents=True, exist_ok=True)
+        for f in src.iterdir():
+            if f.is_file() and not (dst / f.name).exists():
+                try:
+                    shutil.move(str(f), str(dst / f.name))
+                    moved.append(f"{sub}/{f.name}")
+                except OSError:
+                    pass
+    if moved:
+        _prune_empty(APPDATA_HOME)
+        notes.append(
+            f"已把旧数据从 {APPDATA_HOME} 搬进 {DATA_HOME}（{len(moved)} 个文件），"
+            "以后这份数据跟着程序目录走"
+        )
+        return True
+    return False
+
+
 def migrate() -> list[str]:
     """把老版本散落在仓库 / DSH 目录里的数据搬进 DATA_HOME。
 
@@ -76,6 +120,11 @@ def migrate() -> list[str]:
     notes: list[str] = []
     DATA_HOME.mkdir(parents=True, exist_ok=True)
     if CFG_JSON.exists() or SEEN_MD.exists():
+        return notes
+
+    # 便携模式：数据目录变成了程序目录下的 data/，第一次启动把系统用户目录里的旧数据搬过来
+    migrated = _adopt_appdata(notes)
+    if migrated:
         return notes
 
     for legacy in LEGACY_DATA_DIRS:

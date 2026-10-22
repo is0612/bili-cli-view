@@ -21,11 +21,12 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]          # bili-desk/
 
+# 便携模式的数据目录：程序目录下的 data/。存在就用它，数据跟着文件夹走。
+PORTABLE_HOME = PROJECT_ROOT / "data"
 
-def _data_home() -> Path:
-    env = os.environ.get("BILI_DESK_HOME")
-    if env:
-        return Path(env).expanduser()
+
+def _appdata_home() -> Path:
+    """系统默认位置（非便携模式）。"""
     if os.name == "nt":
         base = Path(os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming"))
     elif sys.platform == "darwin":
@@ -35,13 +36,28 @@ def _data_home() -> Path:
     return base / "bili-desk"
 
 
+def _data_home() -> Path:
+    """数据目录三档：环境变量 > 程序目录下的 data/（便携） > 系统用户目录。"""
+    env = os.environ.get("BILI_DESK_HOME")
+    if env:
+        return Path(env).expanduser()
+    if PORTABLE_HOME.is_dir():
+        return PORTABLE_HOME
+    return _appdata_home()
+
+
 # ── 我的数据（会被导出/导入/搬走） ─────────────────────────────
 DATA_HOME = _data_home()
+# 系统默认位置（非便携模式下与 DATA_HOME 相同）。便携模式下用来把旧数据搬过来。
+APPDATA_HOME = _appdata_home()
+
 WORKSPACE = DATA_HOME / "workspace"        # 值班会话的 cwd，放 AGENTS.md
 AGENTS_MD = WORKSPACE / "AGENTS.md"
 CFG_JSON = DATA_HOME / "config.json"
+MENU_JSON = DATA_HOME / "menu.json"
 STATE_JSON = DATA_HOME / "state.json"
 SEEN_MD = DATA_HOME / "seen.md"
+HUMAN_WORLD_MD = DATA_HOME / "human-world.md"   # 人格札记：她每次值班后写一句，随时间沉淀
 OUT_DIR = DATA_HOME / "out"                # 每轮报告
 LOG_DIR = DATA_HOME / "logs"               # 每轮日志
 ENV_FILE = DATA_HOME / ".env"              # DeepSeek Key（导出时默认不含）

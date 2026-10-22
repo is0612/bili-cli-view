@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
 
+from .netenv import child_env
 from .paths import bili_bin
 from .subproc import CREATE_NO_WINDOW, run_capture
 
@@ -15,8 +15,7 @@ async def run_bili(argv: list[str], timeout: float = 240.0) -> dict[str, Any]:
     if not argv:
         return {"code": 2, "json": None, "stdout": "", "stderr": "空命令", "elapsed": 0, "argv": argv}
 
-    env = dict(os.environ)
-    env["PYTHONIOENCODING"] = "utf-8"
+    env = child_env()          # 代理端口不通时自动改直连，见 netenv.py
     exe = bili_bin()
     res = await run_capture(
         [exe, *argv],
