@@ -1,0 +1,59 @@
+import type { BiliUser, CommandGroup, Meta, RunResult, SettingsState } from './types'
+
+async function http<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init)
+  const text = await res.text()
+  let body: unknown = null
+  try {
+    body = text ? JSON.parse(text) : null
+  } catch {
+    body = null
+  }
+  if (!res.ok) {
+    const detail =
+      (body as { detail?: string; error?: string } | null)?.detail ||
+      (body as { error?: string } | null)?.error ||
+      text.slice(0, 200)
+    throw new Error(detail || `HTTP ${res.status}`)
+  }
+  return body as T
+}
+
+export const api = {
+  catalog: () => http<{ groups: CommandGroup[] }>('/api/catalog'),
+
+  meta: () => http<Meta>('/api/meta'),
+
+  run: (argv: string[]) =>
+    http<RunResult>('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ argv }),
+    }),
+
+  login: () => http<RunResult>('/api/login', { method: 'POST' }),
+
+  cancelLogin: () =>
+    http<{ moved: string | null; status: { ok: boolean; data?: { user?: BiliUser } } }>(
+      '/api/cancel-login',
+      { method: 'POST' },
+    ),
+
+  settings: () => http<SettingsState>('/api/settings'),
+
+  saveSettings: (body: {
+    workspace: string
+    agents_md: string
+    api_key: string
+    sync_plugin: boolean
+  }) =>
+    http<{ ok: boolean; notes: string[]; state: SettingsState }>('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
+  coverUrl: (bvid: string) => `/api/cover?bvid=${encodeURIComponent(bvid)}`,
+  imgUrl: (path: string) => `/api/img?p=${encodeURIComponent(path)}`,
+  proxyUrl: (url: string) => `/api/proxy?u=${encodeURIComponent(url)}`,
+}
