@@ -155,10 +155,29 @@ src/
 - Element Plus 整站暗色：`main.ts` 里挂了 `html.dark` + `theme-chalk/dark/css-vars.css`，
   主色在 `style.css` 里按 B站粉重排了 `--el-color-primary` 系列变量。
 
+## 开机自启（让闹钟一直活着）
+
+定时器在 FastAPI 进程里，所以面板要常驻。用计划任务在登录时静默拉起：
+
+- 启动脚本 `scripts/start-panel.ps1`：先探 `/api/ping`，已经在跑就退出（不会起两份）；
+  用 `pythonw.exe` 起后端，不弹控制台；日志写 `runtime/panel.log`、`panel.err.log`。
+- 停止脚本 `scripts/stop-panel.ps1`：按 8811 端口精确停。
+- 注册任务（把 `<仓库路径>` 换成本机路径）：
+
+```powershell
+schtasks /Create /TN "bili-cli-view" /SC ONLOGON /DELAY 0000:30 /RL LIMITED /F `
+  /TR "\"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe\" -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"<仓库路径>\scripts\start-panel.ps1\""
+```
+
+删掉自启：`schtasks /Delete /TN "bili-cli-view" /F`。
+
+> ⚠️ 这两个 `.ps1` 的注释刻意写成英文：Windows PowerShell 5.1 读 **UTF-8 无 BOM** 的脚本会把中文读成乱码，
+> 曾因此解析失败（`Unexpected token`）。要加中文注释就存成带 BOM 或 UTF-16。
+
 ## 许可与来源
 
 MIT（见 [LICENSE](LICENSE)）。
 
-这个仓库**不是** bili-cli 的源码副本：后端封装和前端组件都是独立写的，运行时只是**调用** ili 命令。
-有两处借鉴已在 [NOTICE.md](NOTICE.md) 里写明 —— 命令清单参考了 bili-cli 的 ili schema，
+这个仓库**不是** bili-cli 的源码副本：后端封装和前端组件都是独立写的，运行时只是**调用** bili 命令。
+有两处借鉴已在 [NOTICE.md](NOTICE.md) 里写明 —— 命令清单参考了 bili-cli 的 bili schema，
 duty/duty.md 的章程结构改写自 [dsh-bili-scroll](https://github.com/c1overzz/dsh-bili-scroll)（两者都是 MIT）。
