@@ -2,17 +2,12 @@
 """把 bili CLI 包成一个无状态的调用器：一次调用 = 一个进程 + 一段 JSON。"""
 from __future__ import annotations
 
-import asyncio
 import json
 import os
-import time
 from typing import Any
 
 from .paths import bili_bin
-
-# Windows：面板用 pythonw 起（没有控制台），子进程再起控制台程序会**新开黑窗口**。
-# 用 CREATE_NO_WINDOW 让它彻底不分配控制台 —— 否则每点一次面板就闪一个 cmd 窗。
-CREATE_NO_WINDOW = 0x08000000 if os.name == "nt" else 0
+from .subproc import CREATE_NO_WINDOW, run_capture
 
 
 async def run_bili(argv: list[str], timeout: float = 240.0) -> dict[str, Any]:
@@ -23,41 +18,35 @@ async def run_bili(argv: list[str], timeout: float = 240.0) -> dict[str, Any]:
     env = dict(os.environ)
     env["PYTHONIOENCODING"] = "utf-8"
     exe = bili_bin()
-    t0 = time.time()
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            exe, *argv,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=env,
-            creationflags=CREATE_NO_WINDOW,
-        )
-        try:
-            out_b, err_b = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
-            return {"code": 124, "json": None, "stdout": "", "stderr": "命令超时",
-                    "elapsed": round(time.time() - t0, 2), "argv": argv}
-    except FileNotFoundError:
+    res = await run_capture(
+        [exe, *argv],
+        env=env,
+        timeout=timeout,
+        creationflags=CREATE_NO_WINDOW,
+    )
+
+    if res["error"] == "not_found":
         return {"code": 127, "json": None, "stdout": "",
                 "stderr": f"找不到 bili 可执行文件（{exe}）", "elapsed": 0, "argv": argv}
-    except Exception as exc:  # noqa: BLE001
-        return {"code": 125, "json": None, "stdout": "", "stderr": str(exc),
-                "elapsed": round(time.time() - t0, 2), "argv": argv}
+    if res["timeout"]:
+        return {"code": 124, "json": None, "stdout": "", "stderr": "命令超时",
+                "elapsed": res["elapsed"], "argv": argv}
+    if res["error"]:
+        return {"code": 125, "json": None, "stdout": "", "stderr": res["error"],
+                "elapsed": res["elapsed"], "argv": argv}
 
-    stdout = out_b.decode("utf-8", "replace").strip()
-    stderr = err_b.decode("utf-8", "replace").strip()
+    stdout = res["out"].decode("utf-8", "replace").strip()
+    stderr = res["err"].decode("utf-8", "replace").strip()
     try:
         parsed = json.loads(stdout)
     except Exception:  # noqa: BLE001
         parsed = None
     return {
-        "code": proc.returncode,
+        "code": res["code"],
         "json": parsed,
         "stdout": stdout[-20000:],
         "stderr": stderr[-4000:],
-        "elapsed": round(time.time() - t0, 2),
+        "elapsed": res["elapsed"],
         "argv": argv,
     }
 
