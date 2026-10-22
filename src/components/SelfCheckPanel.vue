@@ -84,7 +84,7 @@ onMounted(run)
           <WarningFilled v-else />
         </el-icon>
         <div style="min-width: 0">
-          <div style="font-size: 13px; font-weight: 600">{{ c.name }}</div>
+          <div style="font-size: 14px; font-weight: 600">{{ c.name }}</div>
           <div class="muted">{{ c.detail }}</div>
           <div v-if="c.hint" style="color: var(--amber); font-size: 12px; margin-top: 3px">
             → {{ c.hint }}

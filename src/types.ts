@@ -107,6 +107,11 @@ export interface DutyState {
   perDay: number
   remaining: number
   report: string
+  seen?: string
+  /** 这一轮正在跑（值班进程还没退出） */
+  running?: boolean
+  /** 最近一轮的结果，进程重启后为空 */
+  last?: { why?: string; code?: number; seconds?: number; picked?: number } | null
 }
 
 export interface DutySnapshot {
@@ -129,4 +134,11 @@ export interface SeenPayload {
   comments: { bvid: string; rpid: string; root: string; time: string; text: string }[]
   rounds: { date: string; note: string }[]
   stats: { total: number; picked: number; skipped: number; rounds: number }
+}
+
+export interface JournalPayload {
+  path: string
+  entries: { date: string; text: string }[]
+  count: number
+  readback: number
 }

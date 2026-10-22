@@ -1,13 +1,25 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, nextTick } from 'vue'
-import { Clock, MagicStick, Refresh, Search, TopRight, VideoPlay } from '@element-plus/icons-vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import {
+  ArrowDown,
+  Clock,
+  CopyDocument,
+  MagicStick,
+  Operation,
+  Refresh,
+  Setting,
+  VideoPlay,
+} from '@element-plus/icons-vue'
 import { api } from './api'
 import CommandRunner from './components/CommandRunner.vue'
 import DutyPanel from './components/DutyPanel.vue'
 import DynamicPanel from './components/DynamicPanel.vue'
+import HomeView from './components/HomeView.vue'
+import JournalPanel from './components/JournalPanel.vue'
 import SeenPanel from './components/SeenPanel.vue'
 import SelfCheckPanel from './components/SelfCheckPanel.vue'
 import LoginModal from './components/LoginModal.vue'
+import MenuManagerModal from './components/MenuManagerModal.vue'
 import ResultCard from './components/ResultCard.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import SidebarNav from './components/SidebarNav.vue'
@@ -20,23 +32,33 @@ const results = ref<RunResult[]>([])
 const meta = ref<Meta | null>(null)
 const busy = ref(false)
 
-/** 工作区视图：命令台 / 运行记录 */
-const view = ref<'cmd' | 'runs'>('cmd')
+/** 三个视图：概览 / 命令台 / 运行记录 */
+const view = ref<'home' | 'cmd' | 'runs'>('home')
+/** 概览页重挂载用：跑完一轮后强制重新拉数据 */
+const homeKey = ref(0)
 
 const settingsOpen = ref(false)
 const loginOpen = ref(false)
+const menuOpen = ref(false)
 const sideRef = ref<InstanceType<typeof SidebarNav> | null>(null)
 const runnerRef = ref<InstanceType<typeof CommandRunner> | null>(null)
 const initialValues = ref<Record<string, string>>({})
 const autoRun = ref(false)
-/** ?demo=1：隐藏版本/账号/主人这三个 chip，方便截公开截图。 */
+/** ?demo=1：隐藏版本/账号这三个 chip，方便截公开截图。 */
 const demo = ref(false)
+
+/** 侧栏收成 64px 图标栏：手动点了「收起」，或窗口窄于 1080 自动收 */
+const railManual = ref(false)
+const narrow = ref(false)
+const rail = computed(() => railManual.value || narrow.value)
 
 const { notify } = useToast()
 
 const loggedIn = computed(() => Boolean(meta.value?.auth.ok && meta.value?.auth.user))
 const spaceUrl = (mid: number | string) => `https://space.bilibili.com/${mid}`
 const level = computed(() => meta.value?.auth.user?.level ?? '?')
+const userName = computed(() => meta.value?.auth.user?.name ?? '未登录')
+const initial = computed(() => userName.value.slice(0, 1).toUpperCase())
 const total = computed(() => groups.value.reduce((n, g) => n + g.items.length, 0))
 const groupOf = (item: CommandItem | null) =>
   item ? (groups.value.find((g) => g.items.some((i) => i.id === item.id))?.group ?? '') : ''
@@ -65,11 +87,34 @@ async function run(argv: string[]) {
   }
 }
 
+/** 概览页的「现在跑一轮」：走值班入口，不是 CLI 命令 */
+async function runRound() {
+  busy.value = true
+  try {
+    const res = await api.runAgent()
+    notify(
+      res.ok ? `本轮完成，采纳 ${res.picked} 条` : `本轮失败（code ${res.code}），去运行记录看日志`,
+      !res.ok,
+    )
+    void loadMeta()
+  } catch (err) {
+    notify(`跑一轮失败：${(err as Error).message}`, true)
+  } finally {
+    busy.value = false
+    homeKey.value += 1
+  }
+}
+
 function choose(item: CommandItem) {
   initialValues.value = {}
   autoRun.value = false
   active.value = item
   view.value = 'cmd'
+}
+
+function goHome() {
+  view.value = 'home'
+  homeKey.value += 1
 }
 
 function quickPick(cmd: string) {
@@ -80,12 +125,51 @@ function quickPick(cmd: string) {
   else notify(`命令表里没有 ${cmd}`, true)
 }
 
+/** 菜单显隐保存后：用后端过滤好的命令表刷新侧栏 */
+function onMenuSaved(nextGroups: CommandGroup[]) {
+  groups.value = nextGroups
+  // 当前选中的命令若被隐藏，退回概览
+  if (active.value && !nextGroups.flatMap((g) => g.items).some((i) => i.id === active.value?.id)) {
+    active.value = null
+    view.value = 'home'
+  }
+}
+
+function clearResults() {
+  results.value = []
+  notify('运行记录已清空（只清本页，磁盘日志还在）')
+}
+
+function exportRuns() {
+  if (!results.value.length) {
+    notify('还没有记录可导出', true)
+    return
+  }
+  const lines = ['# bili-desk 运行记录', '', `导出时间：${new Date().toLocaleString()}`, '']
+  for (const r of results.value) {
+    lines.push(`## bili ${r.argv.join(' ')}`)
+    lines.push(`- 状态：${r.json?.ok ? '成功' : '失败'}（code ${r.code ?? '—'}）`)
+    lines.push(`- 耗时：${r.elapsed}s`)
+    if (r.json?.error) lines.push(`- 错误：${r.json.error.code}：${r.json.error.message}`)
+    lines.push('', '```json', JSON.stringify(r.json ?? {}, null, 2), '```', '')
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `bili-desk-runs-${new Date().toISOString().slice(0, 10)}.md`
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
+
 function hotkey(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
     e.preventDefault()
-    view.value = 'cmd'
     nextTick(() => sideRef.value?.focusSearch())
   }
+}
+
+function onResize() {
+  narrow.value = window.innerWidth < 1080
 }
 
 onMounted(async () => {
@@ -97,11 +181,15 @@ onMounted(async () => {
   }
   void loadMeta()
   window.addEventListener('keydown', hotkey)
+  onResize()
+  window.addEventListener('resize', onResize)
 
   const qs = new URLSearchParams(location.search)
   demo.value = qs.get('demo') === '1'
   if (qs.get('settings') === '1') settingsOpen.value = true
+  if (qs.get('menu') === '1') menuOpen.value = true
   if (qs.get('login') === '1') loginOpen.value = true
+  if (qs.get('v') === 'runs') view.value = 'runs'
   const cmdId = qs.get('cmd')
   if (!cmdId) return
   const item = groups.value.flatMap((g) => g.items).find((i) => i.id === cmdId)
@@ -113,164 +201,204 @@ onMounted(async () => {
   }
   initialValues.value = preset
   active.value = item
+  view.value = 'cmd'
   autoRun.value = qs.get('run') === '1'
   if (autoRun.value) await nextTick()
 })
 
-onUnmounted(() => window.removeEventListener('keydown', hotkey))
+onUnmounted(() => {
+  window.removeEventListener('keydown', hotkey)
+  window.removeEventListener('resize', onResize)
+})
 </script>
 
 <template>
-  <el-container class="shell" direction="vertical">
-    <el-header class="topbar" height="64px">
+  <div class="app">
+    <!-- ── 顶栏 56px：只放身份与设置，导航交给侧栏 ── -->
+    <header class="topbar">
       <div class="brand">
-        <div class="brand-mark"><el-icon :size="16"><VideoPlay /></el-icon></div>
+        <div class="brand-mark"><el-icon><VideoPlay /></el-icon></div>
         <div class="brand-name">bili<span>·desk</span></div>
       </div>
 
-      <el-tag v-if="!demo" round effect="plain" type="info" size="small">v{{ meta?.version ?? '…' }}</el-tag>
+      <span v-if="!demo" class="ver">v{{ meta?.version ?? '…' }}</span>
 
-      <!-- 账号 chip：点一下开自己的 B站 主页 -->
-      <a
-        v-if="!demo && meta?.auth.user"
-        class="tag-link"
-        :href="spaceUrl(meta.auth.user.mid)"
-        target="_blank"
-        rel="noreferrer"
-        :title="`打开 ${meta.auth.user.name} 的B站主页`"
-      >
-        <el-tag round type="success" effect="plain" size="small">
-          <span
-            style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 6px"
-          />
-          {{ meta.auth.user.name }} · Lv{{ level }}
-          <el-icon class="tag-link-icon"><TopRight /></el-icon>
-        </el-tag>
-      </a>
-      <el-tag v-else-if="!demo" round type="danger" effect="plain" size="small">未登录</el-tag>
-
-      <!-- 主人 chip：同样可点 -->
-      <a
-        v-if="!demo && meta?.owner"
-        class="tag-link"
-        :href="spaceUrl(meta.owner.mid)"
-        target="_blank"
-        rel="noreferrer"
-        :title="`打开 ${meta.owner.name} 的B站主页`"
-      >
-        <el-tag round effect="plain" type="info" size="small">
-          主人 · {{ meta.owner.name }}
-          <el-icon class="tag-link-icon"><TopRight /></el-icon>
-        </el-tag>
-      </a>
+      <span v-if="busy" class="tb-run">
+        <i class="pulse" />
+        {{ active ? `正在执行 ${active.cmd ?? active.argv.join(' ')}` : '正在执行…' }}
+      </span>
 
       <span class="spacer" />
 
-      <el-button :icon="MagicStick" size="small" @click="loginOpen = true">
-        {{ loggedIn ? '重新扫码' : '扫码登录' }}
-      </el-button>
-      <el-button :icon="Refresh" size="small" circle title="刷新账号状态" @click="loadMeta" />
-    </el-header>
+      <!-- 账号 pill：已登录点开 B站主页，未登录点开扫码 -->
+      <a
+        v-if="!demo && loggedIn"
+        class="acct"
+        :href="spaceUrl(meta!.auth.user!.mid)"
+        target="_blank"
+        rel="noreferrer"
+        :title="`打开 ${userName} 的B站主页`"
+      >
+        <span class="av">{{ initial }}</span>
+        <span class="on-dot" />
+        <span class="an">{{ userName }}</span>
+        <span class="lv">Lv{{ level }}</span>
+        <el-icon class="chev"><ArrowDown /></el-icon>
+      </a>
+      <button
+        v-else-if="!demo"
+        class="acct is-off"
+        title="还没登录，点这里扫码"
+        @click="loginOpen = true"
+      >
+        <span class="av"><el-icon><MagicStick /></el-icon></span>
+        <span class="on-dot" />
+        <span class="an">未登录</span>
+        <el-icon class="chev"><ArrowDown /></el-icon>
+      </button>
 
-    <el-main class="main">
-      <div class="layout">
-        <SidebarNav
-          ref="sideRef"
-          :groups="groups"
-          :active-id="active?.id ?? null"
-          :view="view"
-          @select="choose"
-          @open-runs="view = 'runs'"
-        />
+      <button
+        v-if="!demo"
+        class="icon-btn"
+        :title="loggedIn ? '重新扫码登录' : '扫码登录'"
+        @click="loginOpen = true"
+      >
+        <el-icon><MagicStick /></el-icon>
+      </button>
+      <button class="icon-btn" title="刷新账号状态" @click="loadMeta">
+        <el-icon><Refresh /></el-icon>
+      </button>
+      <button
+        class="icon-btn"
+        title="设置：人设 / API Key / 数据备份"
+        @click="settingsOpen = true"
+      >
+        <el-icon><Setting /></el-icon>
+      </button>
+    </header>
 
-        <section class="work">
-          <div class="work-scroll">
-            <!-- 面包屑：只在选中命令时出现 -->
-            <div v-if="view === 'cmd' && active" class="page-crumb">
+    <div class="body">
+      <SidebarNav
+        ref="sideRef"
+        :groups="groups"
+        :active-id="active?.id ?? null"
+        :view="view"
+        :run-count="results.length"
+        :rail="rail"
+        @select="choose"
+        @open-home="goHome"
+        @open-runs="view = 'runs'"
+        @manage-menu="menuOpen = true"
+        @toggle-rail="railManual = !railManual"
+      />
+
+      <main class="work">
+        <div class="work-in">
+          <!-- ── ① 概览 ── -->
+          <HomeView
+            v-if="view === 'home'"
+            :key="homeKey"
+            :groups="groups"
+            :results="results"
+            :busy="busy"
+            @select="quickPick"
+            @run-round="runRound"
+            @open-runs="view = 'runs'"
+            @refresh="loadMeta"
+          />
+
+          <!-- ── ② 运行记录 ── -->
+          <template v-else-if="view === 'runs'">
+            <div class="crumb">工作台 <span>/</span> <b>运行记录</b></div>
+            <div class="page-h">
+              <div>
+                <h1>运行记录</h1>
+                <p>最近 {{ results.length }} 次执行，最新的在最前。刷新页面就清空，磁盘日志另外存。</p>
+              </div>
+              <div class="ph-r">
+                <button class="btn" :disabled="!results.length" @click="exportRuns">
+                  <el-icon><CopyDocument /></el-icon>导出 Markdown
+                </button>
+                <button class="btn" :disabled="!results.length" @click="clearResults">清空</button>
+              </div>
+            </div>
+
+            <div v-if="!results.length" class="empty-block">
+              <div class="halo"><el-icon :size="22"><Clock /></el-icon></div>
+              <h4>还没跑过命令</h4>
+              <p>回概览点「现在跑一轮」，或从左边菜单挑一条命令运行一下就有了。</p>
+            </div>
+            <div v-else class="results">
+              <ResultCard v-for="(res, i) in results" :key="i" :result="res" />
+            </div>
+          </template>
+
+          <!-- ── ③ 命令台 ── -->
+          <template v-else>
+            <div v-if="active" class="crumb">
               <span>{{ groupOf(active) }}</span>
               <span>/</span>
               <b>{{ active.label }}</b>
             </div>
 
-            <!-- ── 运行记录 ── -->
-            <template v-if="view === 'runs'">
-              <div class="page-head">
-                <div class="page-crumb">概览 <span>/</span> <b>运行记录</b></div>
-                <h1>运行记录</h1>
-                <p>最近 {{ results.length }} 次执行，最新的在最前。</p>
-              </div>
-              <div v-if="!results.length" class="empty-block">
-                <div class="halo"><el-icon :size="22"><Clock /></el-icon></div>
-                <h4>还没跑过命令</h4>
-                <p>回到左侧菜单挑一条运行一下就有了。</p>
-              </div>
-              <div v-else class="results">
-                <ResultCard v-for="(res, i) in results" :key="i" :result="res" />
-              </div>
-            </template>
+            <DutyPanel v-if="active?.kind === 'duty'" />
+            <DynamicPanel v-else-if="active?.kind === 'dynamic'" />
+            <SeenPanel v-else-if="active?.kind === 'seen'" />
+            <JournalPanel v-else-if="active?.kind === 'journal'" />
+            <SelfCheckPanel v-else-if="active?.kind === 'selfcheck'" />
 
-            <!-- ── 命令台 ── -->
-            <template v-else>
-              <DutyPanel v-if="active?.kind === 'duty'" />
-              <DynamicPanel v-else-if="active?.kind === 'dynamic'" />
-              <SeenPanel v-else-if="active?.kind === 'seen'" />
-              <SelfCheckPanel v-else-if="active?.kind === 'selfcheck'" />
+            <template v-else-if="active">
+              <CommandRunner
+                ref="runnerRef"
+                :item="active"
+                :initial="initialValues"
+                :autorun="autoRun"
+                @run="run"
+              />
 
-              <template v-else>
-                <div v-if="!active" class="page-head">
-                  <div class="page-crumb">概览 <span>/</span> <b>命令台</b></div>
-                  <h1>从左边挑一条命令</h1>
-                  <p>
-                    {{ groups.length }} 组 · {{ total }} 条命令，跟着 bili schema 自动更新。按 Ctrl K 可以直接搜。
-                  </p>
+              <template v-if="results.length">
+                <div class="sec-h">
+                  <h2>最新结果</h2>
+                  <span class="sub">bili {{ active.argv.join(' ') }}</span>
+                  <button class="more" @click="view = 'runs'">全部记录</button>
                 </div>
-
-                <CommandRunner
-                  v-if="active"
-                  ref="runnerRef"
-                  :item="active"
-                  :initial="initialValues"
-                  :autorun="autoRun"
-                  @run="run"
-                />
-
-                <template v-if="results.length">
-                  <div class="section-h">
-                    <h2>最新结果</h2>
-                    <span>{{ active ? `bili ${active.argv.join(' ')}` : `${results.length} 条` }}</span>
-                    <button class="more" @click="view = 'runs'">全部记录 ›</button>
-                  </div>
-                  <ResultCard :result="results[0]" />
-                </template>
-
-                <div v-else-if="!active" class="quick">
-                  <button class="qcard" @click="quickPick('video.watch')">
-                    <span class="qi"><el-icon><VideoPlay /></el-icon></span>
-                    <b>看懂视频</b>
-                    <p>字幕、抽帧、热评，一次出全</p>
-                    <code>video.watch</code>
-                  </button>
-                  <button class="qcard" @click="quickPick('hot.rank')">
-                    <span class="qi"><el-icon><Clock /></el-icon></span>
-                    <b>分区排行</b>
-                    <p>按分区拉热榜，卡片直读</p>
-                    <code>hot.rank</code>
-                  </button>
-                  <button class="qcard" @click="quickPick('feed.inbox')">
-                    <span class="qi"><el-icon><Search /></el-icon></span>
-                    <b>收件箱</b>
-                    <p>回复、@、赞、未读数一次收齐</p>
-                    <code>feed.inbox</code>
-                  </button>
-                </div>
+                <ResultCard :result="results[0]" />
               </template>
             </template>
-          </div>
-        </section>
-      </div>
-    </el-main>
+
+            <template v-else>
+              <div class="page-h">
+                <div>
+                  <h1>{{ groups.length ? '从左边挑一条命令' : '命令表还没加载出来' }}</h1>
+                  <p>
+                    {{ groups.length }} 组 · {{ total }} 条命令，跟着 bili schema 自动更新。按 Ctrl K 直接搜。
+                  </p>
+                </div>
+              </div>
+              <div v-if="!groups.length" class="empty-block">
+                <div class="halo"><el-icon :size="22"><Operation /></el-icon></div>
+                <h4>菜单都被藏起来了</h4>
+                <p>点侧栏底部的「管理菜单」，把要用的命令勾回来就行。</p>
+              </div>
+              <div v-else class="empty-block">
+                <div class="halo"><el-icon :size="22"><Operation /></el-icon></div>
+                <h4>还没选命令</h4>
+                <p>日常操作在侧栏「常用」里；想知道今天怎么样，回概览看。</p>
+                <button class="btn" style="margin-top: 14px" @click="goHome">回概览</button>
+              </div>
+            </template>
+          </template>
+        </div>
+      </main>
+    </div>
 
     <SettingsModal :open="settingsOpen" @close="settingsOpen = false" @notify="notify" />
+    <MenuManagerModal
+      :open="menuOpen"
+      @close="menuOpen = false"
+      @saved="onMenuSaved"
+      @notify="notify"
+    />
     <LoginModal
       :open="loginOpen"
       :logged-in="loggedIn"
@@ -278,5 +406,5 @@ onUnmounted(() => window.removeEventListener('keydown', hotkey))
       @notify="notify"
       @refresh="loadMeta"
     />
-  </el-container>
+  </div>
 </template>

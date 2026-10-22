@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CopyDocument, VideoPlay, MagicStick, Promotion } from '@element-plus/icons-vue'
+import { CopyDocument, MagicStick, Promotion, VideoPlay } from '@element-plus/icons-vue'
 import type { CommandItem } from '../types'
 
 const props = defineProps<{ item: CommandItem; initial?: Record<string, string>; autorun?: boolean }>()
@@ -43,8 +43,8 @@ const argv = computed(() => {
   return out
 })
 
-const preview = computed(() =>
-  'bili ' + argv.value.map((a) => (a.includes(' ') ? `"${a}"` : a)).join(' '),
+const preview = computed(
+  () => 'bili ' + argv.value.map((a) => (a.includes(' ') ? `"${a}"` : a)).join(' '),
 )
 
 /** 位置参数就是必填：空着直接跑，CLI 只会回一句 Missing argument。 */
@@ -80,66 +80,70 @@ onMounted(() => {
 </script>
 
 <template>
-  <el-card class="runner-card" shadow="never">
-    <div class="runner-head">
-      <div class="runner-icon">
-        <el-icon :size="17"><Promotion v-if="item.write" /><MagicStick v-else /></el-icon>
+  <div class="cmd-h">
+    <div class="cmd-ic">
+      <el-icon><Promotion v-if="item.write" /><MagicStick v-else /></el-icon>
+    </div>
+    <div class="hm">
+      <h2 class="cmd-title">
+        {{ item.label }}
+        <span v-if="item.write" class="tag-w">写操作</span>
+      </h2>
+      <div class="cmd-sub">
+        <code>bili {{ item.argv.join(' ') }}</code>
+        <span v-if="item.desc">{{ item.desc }}</span>
       </div>
-      <div style="min-width: 0; flex: 1">
-        <div class="runner-title">
-          {{ item.label }}
-          <el-tag v-if="item.write" type="warning" effect="plain" size="small" round>写操作</el-tag>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-body">
+      <div v-if="params.length" class="fields">
+        <div v-for="p in inputs" :key="p.key" class="fld" :class="{ wide: p.pos }">
+          <label class="fl" :title="p.label">
+            {{ p.label }}<i v-if="p.pos">*</i>
+          </label>
+          <el-select v-if="p.type === 'select'" v-model="values[p.key]" size="default">
+            <el-option v-for="c in p.choices" :key="c" :label="c" :value="c" />
+          </el-select>
+          <el-input
+            v-else
+            v-model="values[p.key]"
+            :type="p.type === 'int' ? 'number' : 'text'"
+            :placeholder="p.ph"
+            clearable
+          />
         </div>
-        <div class="cmd-chip" style="margin-top: 6px">bili {{ item.argv.join(' ') }}</div>
-        <div v-if="item.desc" class="muted" style="margin-top: 6px; line-height: 1.6">{{ item.desc }}</div>
+
+        <div v-for="p in toggles" :key="p.key" class="fld">
+          <label class="fl" :title="p.label">{{ p.label }}</label>
+          <el-switch v-model="values[p.key]" />
+        </div>
       </div>
+      <p v-else class="muted" style="margin: 0">这条命令没有参数，直接运行。</p>
     </div>
 
-    <!-- 参数：横排 chip 行，不再是一整块竖排表单 -->
-    <div v-if="params.length" class="runner-params">
-      <div v-for="p in inputs" :key="p.key" class="fld" :class="{ 'is-wide': p.pos }">
-        <label :title="p.label">{{ p.label }}<i v-if="p.pos">*</i></label>
-        <el-select v-if="p.type === 'select'" v-model="values[p.key]" size="small" style="width: 100%">
-          <el-option v-for="c in p.choices" :key="c" :label="c" :value="c" />
-        </el-select>
-        <el-input
-          v-else
-          v-model="values[p.key]"
-          :type="p.type === 'int' ? 'number' : 'text'"
-          :placeholder="p.ph"
-          size="small"
-          clearable
-        />
-      </div>
-
-      <div v-for="p in toggles" :key="p.key" class="fld is-tog">
-        <label :title="p.label">{{ p.label }}</label>
-        <el-checkbox v-model="values[p.key]" size="small">启用</el-checkbox>
-      </div>
-
-      <div class="runner-actions">
-        <span v-if="missing.length" class="muted">还差：{{ missing.join('、') }}</span>
-        <el-checkbox v-if="item.write" v-model="dryRun" size="small">安全预览</el-checkbox>
-        <el-button
-          type="primary"
-          :loading="busy"
-          :disabled="missing.length > 0"
-          style="min-width: 104px"
-          @click="submit"
-        >
-          <el-icon v-if="!busy" style="margin-right: 5px"><VideoPlay /></el-icon>
-          {{ busy ? '执行中' : '运行' }}
-        </el-button>
-      </div>
-    </div>
-
-    <div class="preview">
-      <el-icon style="color: var(--faint)"><Promotion /></el-icon>
-      <code>{{ preview }}</code>
+    <div class="runbar">
+      <el-icon class="ri"><Promotion /></el-icon>
+      <code :title="preview">{{ preview }}</code>
       <span v-if="item.write && dryRun" class="dry">已加 --dry-run</span>
       <el-button link size="small" title="复制命令" @click="copyCmd">
         <el-icon><CopyDocument /></el-icon>
       </el-button>
+      <el-checkbox v-if="item.write" v-model="dryRun" size="small">安全预览</el-checkbox>
+      <el-button
+        type="primary"
+        :loading="busy"
+        :disabled="missing.length > 0"
+        @click="submit"
+      >
+        <el-icon v-if="!busy" style="margin-right: 5px"><VideoPlay /></el-icon>
+        {{ busy ? '执行中' : '运行' }}
+      </el-button>
     </div>
-  </el-card>
+  </div>
+
+  <p v-if="missing.length" class="muted" style="margin: 8px 0 0">
+    还差：{{ missing.join('、') }}
+  </p>
 </template>

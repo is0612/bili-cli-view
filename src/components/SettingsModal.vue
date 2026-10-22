@@ -169,18 +169,14 @@ async function doReset() {
   <el-dialog
     :model-value="open"
     title="设置"
-    width="720px"
+    width="680px"
     align-center
     @update:model-value="emit('close')"
   >
     <template #header>
-      <div style="display: flex; align-items: center; gap: 8px">
-        <el-icon><Setting /></el-icon>
-        <span style="font-size: 16px; font-weight: 650">设置</span>
-        <el-tag v-if="state?.api_key_set" type="success" effect="plain" size="small" round>
-          Key {{ state.api_key_mask }}
-        </el-tag>
-        <el-tag v-else type="warning" effect="plain" size="small" round>Key 未配置</el-tag>
+      <div style="display: flex; align-items: baseline; gap: 2px">
+        <span style="font-size: 16px; font-weight: 700">设置</span>
+        <span class="modal-sub">人设 / API Key / 数据备份</span>
       </div>
     </template>
 
@@ -243,8 +239,8 @@ async function doReset() {
         <input ref="fileInput" type="file" accept=".zip" hidden @change="onFile" />
       </div>
       <div style="font-size: 12px; margin-top: 8px">
-        换电脑：导出这个 zip 带到新机器，在「设置 → 导入备份」选它即可；想把数据放网盘同步，把环境变量
-        <code>BILI_DESK_HOME</code> 指过去。
+        换电脑：程序目录下有 <code>data/</code> 时数据就存在那里，把整个文件夹拷走即可；也可以「导出备份」
+        带到新机器再「导入备份…」。想把数据放网盘同步，把环境变量 <code>BILI_DESK_HOME</code> 指过去。
       </div>
     </div>
 
@@ -258,12 +254,12 @@ async function doReset() {
     />
 
     <template #footer>
-      <div style="display: flex; align-items: center; gap: 10px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <el-button link type="primary" @click="insertTemplate">插入人设模板</el-button>
+        <el-checkbox v-model="syncPlugin">同步到 DSH 插件配置</el-checkbox>
+        <span style="margin-left: auto" />
+        <el-button @click="emit('close')">取消</el-button>
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
-        <el-button @click="insertTemplate">插入模板</el-button>
-        <el-checkbox v-model="syncPlugin" style="margin-left: auto">
-          同步到 DSH 插件配置（本机全局）
-        </el-checkbox>
       </div>
     </template>
   </el-dialog>

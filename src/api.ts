@@ -2,6 +2,7 @@ import type {
   BiliUser,
   CommandGroup,
   DutySnapshot,
+  JournalPayload,
   Meta,
   ProfileInfo,
   RunResult,
@@ -30,6 +31,21 @@ async function http<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   catalog: () => http<{ groups: CommandGroup[] }>('/api/catalog'),
+
+  /** 完整命令表（含已隐藏项）—— 菜单管理弹窗专用 */
+  catalogAll: () => http<{ groups: CommandGroup[] }>('/api/catalog?all=1'),
+
+  menu: () => http<{ hidden_groups: string[]; hidden_items: string[] }>('/api/menu'),
+
+  saveMenu: (body: { hidden_groups: string[]; hidden_items: string[] }) =>
+    http<{ ok: boolean; config: { hidden_groups: string[]; hidden_items: string[] }; groups: CommandGroup[] }>(
+      '/api/menu',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    ),
 
   meta: () => http<Meta>('/api/meta'),
 
@@ -109,6 +125,15 @@ export const api = {
     }),
 
   seen: () => http<SeenPayload>('/api/agent/seen'),
+
+  journal: () => http<JournalPayload>('/api/agent/journal'),
+
+  saveJournal: (entries: string[]) =>
+    http<JournalPayload>('/api/agent/journal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries }),
+    }),
 
   postDynamic: (body: { text: string; images: string[]; at: string[]; dry_run: boolean }) =>
     http<RunResult>('/api/duty/dynamic', {
