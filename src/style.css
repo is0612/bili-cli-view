@@ -1353,6 +1353,124 @@ kbd {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── 运行记录：筛选 chip + 紧凑行列表 ───────────────────── */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 14px;
+}
+
+.chip {
+  height: 30px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.14s var(--ease);
+}
+
+.chip:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.chip.on {
+  background: var(--text);
+  border-color: var(--text);
+  color: #fff;
+  font-weight: 600;
+}
+
+.chip .n {
+  font-size: 12px;
+  opacity: 0.65;
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip.on .n {
+  opacity: 0.8;
+}
+
+.filters .sp {
+  margin-left: auto;
+}
+
+.filters .fhint {
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.runs-list {
+  padding: 6px 0;
+}
+
+.runs-list .rrow {
+  cursor: pointer;
+}
+
+.runs-list .rchev {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--faint);
+  transition: transform 0.15s var(--ease);
+}
+
+.runs-list .rchev.open {
+  transform: rotate(180deg);
+}
+
+.rdetail {
+  padding: 4px 14px 16px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.rdetail .el-card {
+  box-shadow: none;
+  background: var(--surface);
+}
+
+/* ── 骨架屏 ─────────────────────────────────────────────── */
+/* 只用 background-position 做动画，不在 keyframes 里碰 opacity：
+   动画被暂停时（无头截图、低性能设备）不会整块隐形 */
+.sk {
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--surface-3) 25%, #e9edf3 37%, var(--surface-3) 63%);
+  background-size: 400% 100%;
+  animation: sk-shimmer 1.3s ease infinite;
+}
+
+@keyframes sk-shimmer {
+  from {
+    background-position: 100% 50%;
+  }
+  to {
+    background-position: 0 50%;
+  }
+}
+
+.sk-card {
+  padding: 14px 16px;
+}
+
+.wrow.is-skel {
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk {
+    animation: none;
+  }
+}
+
 /* 状态徽标 */
 .badge {
   display: inline-flex;

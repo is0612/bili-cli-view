@@ -100,3 +100,42 @@ export function isVideoLike(node: Record<string, unknown>): boolean {
 export function isWatchLike(node: Record<string, unknown>): boolean {
   return Boolean(node.transcript || node.ai_summary)
 }
+
+/**
+ * 运行记录 / 最近运行用的一句话摘要。
+ * 视频类命令的 data 是 `{ zone, items: [...] }`，直接说「6 条 · tech」比「2 个字段」有用。
+ */
+export function runSummary(res: {
+  json?: { ok?: boolean; data?: unknown; error?: { code: string; message: string } } | null
+} | null): string {
+  const json = res?.json
+  if (!json) return '无输出'
+  if (json.error) return `${json.error.code}：${json.error.message}`
+  const data = json.data
+  if (Array.isArray(data)) return `${data.length} 条结果`
+  if (data && typeof data === 'object') {
+    const o = data as Record<string, unknown>
+    if (Array.isArray(o.items)) {
+      let zone = ''
+      if (typeof o.zone === 'string') zone = o.zone === 'all' ? '全站' : o.zone
+      return `${o.items.length} 条${zone ? ` · ${zone}` : ''}`
+    }
+    // video.watch 这类：说清抓到了什么，比「19 个字段」有用
+    if (o.transcript || o.hot_comments || o.frames_sheet) {
+      const bits: string[] = []
+      if (o.transcript) bits.push('字幕')
+      if (o.frames_sheet) bits.push('抽帧图')
+      if (Array.isArray(o.hot_comments)) bits.push(`热评 ${o.hot_comments.length} 条`)
+      if (bits.length) return bits.join(' · ')
+    }
+    return `${Object.keys(o).length} 个字段`
+  }
+  if (typeof data === 'string') return data.length > 60 ? `${data.slice(0, 60)}…` : data
+  return json.ok ? '执行成功' : '无输出'
+}
+
+/** 本地时间 HH:MM，运行记录里的时间戳用 */
+export function hhmm(d = new Date()): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+

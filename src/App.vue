@@ -24,11 +24,12 @@ import ResultCard from './components/ResultCard.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import SidebarNav from './components/SidebarNav.vue'
 import { useToast } from './composables/useToast'
-import type { CommandGroup, CommandItem, Meta, RunResult } from './types'
+import { hhmm, runSummary } from './utils/format'
+import type { CommandGroup, CommandItem, Meta, RunEntry } from './types'
 
 const groups = ref<CommandGroup[]>([])
 const active = ref<CommandItem | null>(null)
-const results = ref<RunResult[]>([])
+const results = ref<RunEntry[]>([])
 const meta = ref<Meta | null>(null)
 const busy = ref(false)
 
@@ -36,6 +37,9 @@ const busy = ref(false)
 const view = ref<'home' | 'cmd' | 'runs'>('home')
 /** 概览页重挂载用：跑完一轮后强制重新拉数据 */
 const homeKey = ref(0)
+
+/** 深链想跳的视图：如果同时要 autorun，得等命令跑完再切 */
+const pendingView = ref<'runs' | 'home' | null>(null)
 
 const settingsOpen = ref(false)
 const loginOpen = ref(false)
@@ -76,7 +80,7 @@ async function run(argv: string[]) {
   runnerRef.value?.setBusy(true)
   try {
     const res = await api.run(argv)
-    results.value.unshift(res)
+    results.value.unshift({ ...res, at: Date.now() })
     if (results.value.length > 30) results.value.pop()
     if (!res.json?.ok && res.json?.error?.code === 'auth_expired') void loadMeta()
   } catch (err) {
@@ -84,6 +88,11 @@ async function run(argv: string[]) {
   } finally {
     busy.value = false
     runnerRef.value?.setBusy(false)
+    // 深链里同时带了 v=runs：等这条真正跑完再切过去，否则命令台被卸载、命令根本没发出去
+    if (pendingView.value) {
+      view.value = pendingView.value
+      pendingView.value = null
+    }
   }
 }
 
@@ -137,7 +146,24 @@ function onMenuSaved(nextGroups: CommandGroup[]) {
 
 function clearResults() {
   results.value = []
+  expandedRun.value = -1
   notify('运行记录已清空（只清本页，磁盘日志还在）')
+}
+
+/* ── 运行记录：筛选 + 展开详情 ─────────────────────────── */
+const runFilter = ref<'all' | 'ok' | 'err'>('all')
+/** 展开的是哪一条（用 at 当 id），-1 表示都收起 */
+const expandedRun = ref(-1)
+const okRuns = computed(() => results.value.filter((r) => r.json?.ok).length)
+const errRuns = computed(() => results.value.length - okRuns.value)
+const shownRuns = computed(() => {
+  if (runFilter.value === 'ok') return results.value.filter((r) => r.json?.ok)
+  if (runFilter.value === 'err') return results.value.filter((r) => !r.json?.ok)
+  return results.value
+})
+
+function toggleRun(at: number) {
+  expandedRun.value = expandedRun.value === at ? -1 : at
 }
 
 function exportRuns() {
@@ -189,21 +215,28 @@ onMounted(async () => {
   if (qs.get('settings') === '1') settingsOpen.value = true
   if (qs.get('menu') === '1') menuOpen.value = true
   if (qs.get('login') === '1') loginOpen.value = true
-  if (qs.get('v') === 'runs') view.value = 'runs'
+  const wantView = qs.get('v')
   const cmdId = qs.get('cmd')
-  if (!cmdId) return
-  const item = groups.value.flatMap((g) => g.items).find((i) => i.id === cmdId)
-  if (!item) return
-  const preset: Record<string, string> = {}
-  for (const p of item.params ?? []) {
-    const v = qs.get(p.key)
-    if (v != null) preset[p.key] = v
+  if (cmdId) {
+    const item = groups.value.flatMap((g) => g.items).find((i) => i.id === cmdId)
+    if (item) {
+      const preset: Record<string, string> = {}
+      for (const p of item.params ?? []) {
+        const v = qs.get(p.key)
+        if (v != null) preset[p.key] = v
+      }
+      initialValues.value = preset
+      active.value = item
+      view.value = 'cmd'
+      autoRun.value = qs.get('run') === '1'
+      if (autoRun.value) await nextTick()
+    }
   }
-  initialValues.value = preset
-  active.value = item
-  view.value = 'cmd'
-  autoRun.value = qs.get('run') === '1'
-  if (autoRun.value) await nextTick()
+  // ?v=runs 放最后：可以「?cmd=xxx&run=1&v=runs」——跑一条然后直接看运行记录
+  if (wantView === 'runs' || wantView === 'home') {
+    if (autoRun.value) pendingView.value = wantView
+    else view.value = wantView
+  }
 })
 
 onUnmounted(() => {
@@ -323,13 +356,45 @@ onUnmounted(() => {
               </div>
             </div>
 
+            <div class="filters">
+              <button class="chip" :class="{ on: runFilter === 'all' }" @click="runFilter = 'all'">
+                全部<span class="n">{{ results.length }}</span>
+              </button>
+              <button class="chip" :class="{ on: runFilter === 'ok' }" @click="runFilter = 'ok'">
+                成功<span class="n">{{ okRuns }}</span>
+              </button>
+              <button class="chip" :class="{ on: runFilter === 'err' }" @click="runFilter = 'err'">
+                失败<span class="n">{{ errRuns }}</span>
+              </button>
+              <span class="sp" />
+              <span v-if="results.length" class="fhint">点一行展开原始 JSON</span>
+            </div>
+
             <div v-if="!results.length" class="empty-block">
               <div class="halo"><el-icon :size="22"><Clock /></el-icon></div>
               <h4>还没跑过命令</h4>
               <p>回概览点「现在跑一轮」，或从左边菜单挑一条命令运行一下就有了。</p>
             </div>
-            <div v-else class="results">
-              <ResultCard v-for="(res, i) in results" :key="i" :result="res" />
+            <div v-else-if="!shownRuns.length" class="empty-block">
+              <div class="halo"><el-icon :size="22"><Clock /></el-icon></div>
+              <h4>这一类还没有记录</h4>
+              <p>{{ runFilter === 'ok' ? '成功的记录是空的' : '失败的记录是空的' }}，切回「全部」看看。</p>
+            </div>
+            <div v-else class="card runs-list">
+              <template v-for="res in shownRuns" :key="res.at">
+                <div class="rrow" @click="toggleRun(res.at)">
+                  <span class="rdot" :class="res.json?.ok ? 'ok' : 'err'" />
+                  <div class="rmain">
+                    <div class="rc">bili {{ res.argv.join(' ') }}</div>
+                    <div class="rs">{{ runSummary(res) }}</div>
+                  </div>
+                  <span class="rt">{{ res.elapsed }}s · {{ hhmm(new Date(res.at)) }}</span>
+                  <el-icon class="rchev" :class="{ open: expandedRun === res.at }"><ArrowDown /></el-icon>
+                </div>
+                <div v-if="expandedRun === res.at" class="rdetail">
+                  <ResultCard :result="res" />
+                </div>
+              </template>
             </div>
           </template>
 

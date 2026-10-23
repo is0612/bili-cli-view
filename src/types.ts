@@ -51,6 +51,11 @@ export interface RunResult {
   argv: string[]
 }
 
+/** 前端本地记录：多一个收到结果的时间戳，运行记录里要显示「几点跑的」 */
+export interface RunEntry extends RunResult {
+  at: number
+}
+
 export interface SettingsState {
   workspace: string
   workspace_default: string

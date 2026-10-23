@@ -168,8 +168,32 @@ const h1 = computed(() => {
   return `今天刷了 ${picked.value} 条，还剩 ${perDay.value - picked.value} 条配额`
 })
 
+/** 下一个谷时窗口：按 windows 的 start/end 算，窗口内就说「进行中」 */
+const nextWindow = computed(() => {
+  const w = duty.value?.windows
+  if (!w) return ''
+  const toMin = (s: string) => {
+    const [h, m] = (s ?? '').split(':').map(Number)
+    return Number.isFinite(h) ? h * 60 + (Number.isFinite(m) ? m : 0) : NaN
+  }
+  const list = Object.values(w)
+    .map((x) => ({ label: x.label, start: x.start, end: x.end, s: toMin(x.start), e: toMin(x.end) }))
+    .filter((x) => Number.isFinite(x.s) && Number.isFinite(x.e))
+    .sort((a, b) => a.s - b.s)
+  if (!list.length) return ''
+  const now = new Date()
+  const mins = now.getHours() * 60 + now.getMinutes()
+  const cur = list.find((x) => mins >= x.s && mins < x.e)
+  if (cur) return `谷时窗口${cur.label}进行中（${cur.start}–${cur.end}）`
+  const next = list.find((x) => x.s > mins) ?? list[0]
+  const day = next.s > mins ? '今天' : '明天'
+  return `下次谷时窗口 ${next.start} 开启（${day}）`
+})
+
 const subtitle = computed(() => {
   const bits: string[] = []
+  const w = nextWindow.value
+  if (w) bits.push(w)
   if (st.value?.rounds) bits.push(`今天跑了 ${st.value.rounds} 轮`)
   bits.push(`判重表已记 ${seenTotal.value} 条`)
   if (profile.value?.dir) bits.push(`数据在 ${profile.value.dir}`)
@@ -197,7 +221,14 @@ const subtitle = computed(() => {
     </div>
 
     <!-- 先给「今天怎么样」，再给内容 -->
-    <div class="kpi-row">
+    <div v-if="loading" class="kpi-row">
+      <div v-for="i in 4" :key="i" class="kpi">
+        <div class="sk" style="height: 12px; width: 46%; margin-bottom: 10px" />
+        <div class="sk" style="height: 26px; width: 58%; margin-bottom: 10px" />
+        <div class="sk" style="height: 10px; width: 74%" />
+      </div>
+    </div>
+    <div v-else class="kpi-row">
       <div class="kpi">
         <div class="k"><el-icon><Clock /></el-icon>今日进度</div>
         <div class="v">
@@ -233,7 +264,43 @@ const subtitle = computed(() => {
       </div>
     </div>
 
-    <div class="home-cols">
+    <div v-if="loading" class="home-cols">
+      <div>
+        <div class="sec-h"><h2>她今天看了什么</h2></div>
+        <div class="card">
+          <div v-for="i in 3" :key="i" class="wrow is-skel">
+            <div class="sk" style="width: 56px; height: 56px; border-radius: 8px; flex: none" />
+            <div style="flex: 1; min-width: 0">
+              <div class="sk" style="height: 13px; width: 82%; margin-bottom: 8px" />
+              <div class="sk" style="height: 11px; width: 46%" />
+            </div>
+          </div>
+        </div>
+        <div class="sec-h"><h2>今日报告</h2></div>
+        <div class="card">
+          <div class="sk-card">
+            <div class="sk" style="height: 12px; width: 96%; margin-bottom: 9px" />
+            <div class="sk" style="height: 12px; width: 90%; margin-bottom: 9px" />
+            <div class="sk" style="height: 12px; width: 62%" />
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="sec-h"><h2>快速开始</h2></div>
+        <div class="card">
+          <div class="sk-card">
+            <div v-for="i in 4" :key="i" class="sk" style="height: 34px; margin-bottom: 7px" />
+          </div>
+        </div>
+        <div class="sec-h"><h2>最近运行</h2></div>
+        <div class="card">
+          <div class="sk-card">
+            <div v-for="i in 4" :key="i" class="sk" style="height: 34px; margin-bottom: 7px" />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div v-else class="home-cols">
       <!-- 左栏：她今天看了什么 + 今日报告 -->
       <div>
         <div class="sec-h">
